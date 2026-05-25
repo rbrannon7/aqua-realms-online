@@ -1,134 +1,352 @@
-const express = require('express');
-const http = require('http');
+'use strict';
+const express   = require('express');
+const http      = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
+const path      = require('path');
+const fs        = require('fs');
+const Database  = require('better-sqlite3');
+const bcrypt    = require('bcryptjs');
+const jwt       = require('jsonwebtoken');
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss    = new WebSocket.Server({ server });
 
-const PORT = process.env.PORT || 10000;
-const LEADERBOARD_PATH = path.join(__dirname, 'data', 'leaderboard.json');
+const PORT       = process.env.PORT || 10000;
+const JWT_SECRET = process.env.JWT_SECRET || 'aqua-realms-dev-secret-changeme-in-production';
+const JWT_EXPIRY = '30d';
 
+// ─── Database ─────────────────────────────────────────────────────────────────
+const DB_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+
+const db = new Database(path.join(DB_DIR, 'aqua-realms.db'));
+db.pragma('journal_mode = WAL');
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    username       TEXT    UNIQUE NOT NULL COLLATE NOCASE,
+    email          TEXT    UNIQUE NOT NULL COLLATE NOCASE,
+    password_hash  TEXT    NOT NULL,
+    created_at     TEXT    DEFAULT (datetime('now')),
+    wins           INTEGER DEFAULT 0,
+    losses         INTEGER DEFAULT 0,
+    games_played   INTEGER DEFAULT 0,
+    win_streak     INTEGER DEFAULT 0,
+    longest_streak INTEGER DEFAULT 0,
+    last_seen      TEXT
+  );
+  CREATE TABLE IF NOT EXISTS game_history (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id           INTEGER REFERENCES users(id),
+    opponent_username TEXT,
+    result            TEXT CHECK(result IN ('win','loss')),
+    played_at         TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
-function loadLeaderboard() {
-  try {
-    if (!fs.existsSync(LEADERBOARD_PATH)) return {};
-    return JSON.parse(fs.readFileSync(LEADERBOARD_PATH, 'utf8'));
-  } catch {
-    return {};
-  }
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+function verifyToken(req) {
+  const h = req.headers.authorization;
+  if (!h?.startsWith('Bearer ')) return null;
+  try { return jwt.verify(h.slice(7), JWT_SECRET); } catch { return null; }
 }
 
-function saveLeaderboard(data) {
+// ─── Auth endpoints ───────────────────────────────────────────────────────────
+app.post('/api/auth/register', (req, res) => {
+  const { username, email, password } = req.body || {};
+  if (!username || !email || !password)
+    return res.status(400).json({ error: 'All fields required' });
+  if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username))
+    return res.status(400).json({ error: 'Username: 3–20 chars, letters/numbers/_/-' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return res.status(400).json({ error: 'Invalid email address' });
+  if (password.length < 6)
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
   try {
-    fs.mkdirSync(path.dirname(LEADERBOARD_PATH), { recursive: true });
-    fs.writeFileSync(LEADERBOARD_PATH, JSON.stringify(data, null, 2));
+    const hash   = bcrypt.hashSync(password, 10);
+    const result = db.prepare(
+      'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)'
+    ).run(username, email.toLowerCase(), hash);
+
+    const user  = db.prepare(
+      'SELECT id, username, email, wins, losses, games_played, win_streak, longest_streak FROM users WHERE id = ?'
+    ).get(result.lastInsertRowid);
+    const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+    res.json({ token, user });
   } catch (err) {
-    console.error('Leaderboard save error:', err.message);
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      const emailExists = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
+      return res.status(409).json({ error: emailExists ? 'Email already in use' : 'Username already taken' });
+    }
+    console.error('Register error:', err.message);
+    res.status(500).json({ error: 'Server error' });
   }
-}
+});
 
-function recordResult(winnerName, loserName) {
-  const board = loadLeaderboard();
-  [winnerName, loserName].forEach(name => {
-    if (!board[name]) board[name] = { name, wins: 0, losses: 0, games: 0 };
-  });
-  board[winnerName].wins++;
-  board[winnerName].games++;
-  board[loserName].losses++;
-  board[loserName].games++;
-  saveLeaderboard(board);
-}
+app.post('/api/auth/login', (req, res) => {
+  const { identifier, password } = req.body || {};
+  if (!identifier || !password)
+    return res.status(400).json({ error: 'All fields required' });
 
+  const user = db.prepare(
+    'SELECT * FROM users WHERE email = ? OR username = ?'
+  ).get(identifier.toLowerCase(), identifier);
+
+  if (!user || !bcrypt.compareSync(password, user.password_hash))
+    return res.status(401).json({ error: 'Invalid credentials' });
+
+  db.prepare("UPDATE users SET last_seen = datetime('now') WHERE id = ?").run(user.id);
+  const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  const { password_hash, ...userData } = user;
+  res.json({ token, user: userData });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const payload = verifyToken(req);
+  if (!payload) return res.status(401).json({ error: 'Not authenticated' });
+  const user = db.prepare(
+    'SELECT id, username, email, wins, losses, games_played, win_streak, longest_streak, created_at FROM users WHERE id = ?'
+  ).get(payload.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ user });
+});
+
+// ─── Leaderboard & stats ──────────────────────────────────────────────────────
 app.get('/api/leaderboard', (req, res) => {
-  const board = loadLeaderboard();
-  const sorted = Object.values(board)
-    .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
-    .slice(0, 20);
-  res.json(sorted);
+  const rows = db.prepare(`
+    SELECT username, wins, losses, games_played, longest_streak,
+           CASE WHEN games_played > 0 THEN ROUND(wins * 100.0 / games_played) ELSE 0 END AS win_rate
+    FROM users
+    WHERE games_played > 0
+    ORDER BY wins DESC, win_rate DESC, losses ASC
+    LIMIT 20
+  `).all();
+  res.json(rows);
+});
+
+app.get('/api/stats/:username', (req, res) => {
+  const user = db.prepare(`
+    SELECT username, wins, losses, games_played, win_streak, longest_streak, created_at,
+           CASE WHEN games_played > 0 THEN ROUND(wins * 100.0 / games_played) ELSE 0 END AS win_rate
+    FROM users WHERE username = ?
+  `).get(req.params.username);
+  if (!user) return res.status(404).json({ error: 'Player not found' });
+  res.json(user);
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', rooms: rooms.size, waiting: waitingPlayer ? 1 : 0 });
+  res.json({ status: 'ok', rooms: rooms.size, waiting: waitingPlayer ? 1 : 0, lobby: lobbyPlayers.size });
 });
 
-const rooms = new Map();
-let waitingPlayer = null;
+// ─── Game state ───────────────────────────────────────────────────────────────
+const rooms          = new Map();
+let   waitingPlayer  = null;
+const lobbyPlayers   = new Map();      // username → ws
+const pendingChallenges = new Map();   // challengerUsername → { targetUsername, targetWs, timer }
 
+function broadcastLobbyState() {
+  const players = [];
+  lobbyPlayers.forEach((ws, username) => {
+    players.push({ username, status: ws.lobbyStatus || 'lobby' });
+  });
+  const msg = JSON.stringify({ type: 'LOBBY_STATE', players });
+  lobbyPlayers.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  });
+}
+
+function recordResult(winnerWs, loserWs) {
+  const winnerName = winnerWs?.playerName || 'Unknown';
+  const loserName  = loserWs?.playerName  || 'Unknown';
+
+  if (winnerWs?.authUserId) {
+    const cur       = db.prepare('SELECT win_streak FROM users WHERE id = ?').get(winnerWs.authUserId);
+    const newStreak = (cur?.win_streak || 0) + 1;
+    db.prepare(`UPDATE users SET wins = wins + 1, games_played = games_played + 1,
+      win_streak = ?, longest_streak = MAX(longest_streak, ?) WHERE id = ?`)
+      .run(newStreak, newStreak, winnerWs.authUserId);
+    db.prepare('INSERT INTO game_history (user_id, opponent_username, result) VALUES (?,?,?)')
+      .run(winnerWs.authUserId, loserName, 'win');
+  }
+
+  if (loserWs?.authUserId) {
+    db.prepare('UPDATE users SET losses = losses + 1, games_played = games_played + 1, win_streak = 0 WHERE id = ?')
+      .run(loserWs.authUserId);
+    db.prepare('INSERT INTO game_history (user_id, opponent_username, result) VALUES (?,?,?)')
+      .run(loserWs.authUserId, winnerName, 'loss');
+  }
+
+  console.log(`Result: ${winnerName} beat ${loserName}`);
+}
+
+// ─── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
-  ws.id = uuidv4();
+  ws.id      = uuidv4();
   ws.isAlive = true;
 
   ws.on('pong', () => { ws.isAlive = true; });
 
   ws.on('message', (raw) => {
     let msg;
-    try {
-      msg = JSON.parse(raw);
-    } catch {
-      return;
-    }
+    try { msg = JSON.parse(raw); } catch { return; }
 
     switch (msg.type) {
 
-      case 'JOIN': {
-        ws.playerName = msg.name || 'Anonymous';
-
-        if (waitingPlayer && waitingPlayer.readyState === WebSocket.OPEN) {
-          const roomId = uuidv4();
-          const p1 = waitingPlayer;
-          const p2 = ws;
-
-          p1.roomId = roomId;
-          p2.roomId = roomId;
-
-          const firstPlayer = Math.random() < 0.5 ? 1 : 2;
-
-          rooms.set(roomId, {
-            p1, p2,
-            p1Name: p1.playerName,
-            p2Name: p2.playerName,
-          });
-
-          waitingPlayer = null;
-
-          send(p1, {
-            type: 'GAME_START',
-            roomId,
-            yourRole: 'p1',
-            opponentName: p2.playerName,
-            firstPlayer,
-          });
-
-          send(p2, {
-            type: 'GAME_START',
-            roomId,
-            yourRole: 'p2',
-            opponentName: p1.playerName,
-            firstPlayer,
-          });
-
-          console.log(`Room ${roomId.slice(0, 8)}: ${p1.playerName} vs ${p2.playerName}`);
-
-        } else {
-          waitingPlayer = ws;
-          send(ws, { type: 'WAITING', message: 'Looking for an opponent...' });
-          console.log(`${ws.playerName} is waiting for a match`);
+      // ── Auth ────────────────────────────────────────────────────────────────
+      case 'AUTH': {
+        try {
+          const payload = jwt.verify(msg.token, JWT_SECRET);
+          const user    = db.prepare(
+            'SELECT id, username, wins, losses, games_played FROM users WHERE id = ?'
+          ).get(payload.userId);
+          if (!user) { send(ws, { type: 'AUTH_ERROR', error: 'User not found' }); break; }
+          ws.authUserId   = user.id;
+          ws.authUsername = user.username;
+          ws.playerName   = user.username;
+          db.prepare("UPDATE users SET last_seen = datetime('now') WHERE id = ?").run(user.id);
+          send(ws, { type: 'AUTH_OK', user });
+        } catch {
+          send(ws, { type: 'AUTH_ERROR', error: 'Invalid token' });
         }
         break;
       }
 
+      // ── Lobby ────────────────────────────────────────────────────────────────
+      case 'LOBBY_ENTER': {
+        if (!ws.authUsername) { send(ws, { type: 'ERROR', error: 'Must authenticate first' }); break; }
+        ws.lobbyStatus = 'lobby';
+        lobbyPlayers.set(ws.authUsername, ws);
+        broadcastLobbyState();
+        break;
+      }
+
+      case 'LOBBY_LEAVE': {
+        if (ws.authUsername) {
+          lobbyPlayers.delete(ws.authUsername);
+          broadcastLobbyState();
+        }
+        break;
+      }
+
+      // ── Matchmaking ──────────────────────────────────────────────────────────
+      case 'JOIN': {
+        ws.playerName = msg.name || ws.authUsername || 'Anonymous';
+
+        if (ws.authUsername && lobbyPlayers.has(ws.authUsername)) {
+          ws.lobbyStatus = 'queued';
+          broadcastLobbyState();
+        }
+
+        if (waitingPlayer && waitingPlayer !== ws && waitingPlayer.readyState === WebSocket.OPEN) {
+          const roomId = uuidv4();
+          const p1 = waitingPlayer;
+          const p2 = ws;
+          p1.roomId = roomId;
+          p2.roomId = roomId;
+          const firstPlayer = Math.random() < 0.5 ? 1 : 2;
+
+          rooms.set(roomId, { p1, p2, p1Name: p1.playerName, p2Name: p2.playerName, resultRecorded: false });
+          waitingPlayer = null;
+
+          if (p1.authUsername) { p1.lobbyStatus = 'in_game'; }
+          if (p2.authUsername) { p2.lobbyStatus = 'in_game'; }
+          broadcastLobbyState();
+
+          send(p1, { type: 'GAME_START', roomId, yourRole: 'p1', opponentName: p2.playerName, firstPlayer });
+          send(p2, { type: 'GAME_START', roomId, yourRole: 'p2', opponentName: p1.playerName, firstPlayer });
+          console.log(`Room ${roomId.slice(0, 8)}: ${p1.playerName} vs ${p2.playerName}`);
+        } else {
+          waitingPlayer = ws;
+          send(ws, { type: 'WAITING', message: 'Looking for an opponent...' });
+          console.log(`${ws.playerName} is waiting`);
+        }
+        break;
+      }
+
+      // ── Challenge ────────────────────────────────────────────────────────────
+      case 'CHALLENGE': {
+        if (!ws.authUsername) { send(ws, { type: 'ERROR', error: 'Must be authenticated' }); break; }
+        const targetWs = lobbyPlayers.get(msg.targetUsername);
+        if (!targetWs || targetWs.readyState !== WebSocket.OPEN || targetWs.lobbyStatus !== 'lobby') {
+          send(ws, { type: 'CHALLENGE_RESULT', accepted: false, reason: 'Player is not available' });
+          break;
+        }
+        if (pendingChallenges.has(ws.authUsername)) {
+          clearTimeout(pendingChallenges.get(ws.authUsername).timer);
+        }
+        const timer = setTimeout(() => {
+          if (pendingChallenges.has(ws.authUsername)) {
+            pendingChallenges.delete(ws.authUsername);
+            send(ws, { type: 'CHALLENGE_RESULT', accepted: false, reason: 'Challenge timed out' });
+          }
+        }, 30000);
+        pendingChallenges.set(ws.authUsername, { targetUsername: msg.targetUsername, targetWs, timer });
+        send(targetWs, { type: 'CHALLENGE_RECEIVED', fromUsername: ws.authUsername });
+        break;
+      }
+
+      case 'CHALLENGE_RESPONSE': {
+        if (!ws.authUsername) break;
+        let challengerUsername = null;
+        let challengeData      = null;
+        for (const [cUser, cData] of pendingChallenges.entries()) {
+          if (cData.targetUsername === ws.authUsername) {
+            challengerUsername = cUser;
+            challengeData      = cData;
+            break;
+          }
+        }
+        if (!challengerUsername) { send(ws, { type: 'ERROR', error: 'No pending challenge' }); break; }
+
+        clearTimeout(challengeData.timer);
+        pendingChallenges.delete(challengerUsername);
+
+        const challengerWs = lobbyPlayers.get(challengerUsername);
+
+        if (!msg.accepted) {
+          if (challengerWs) send(challengerWs, { type: 'CHALLENGE_RESULT', accepted: false, reason: `${ws.authUsername} declined` });
+          break;
+        }
+        if (!challengerWs || challengerWs.readyState !== WebSocket.OPEN) {
+          send(ws, { type: 'ERROR', error: 'Challenger disconnected' });
+          break;
+        }
+
+        const roomId      = uuidv4();
+        challengerWs.roomId = roomId;
+        ws.roomId           = roomId;
+        const firstPlayer   = Math.random() < 0.5 ? 1 : 2;
+
+        rooms.set(roomId, {
+          p1: challengerWs, p2: ws,
+          p1Name: challengerWs.playerName, p2Name: ws.playerName,
+          resultRecorded: false,
+        });
+        challengerWs.lobbyStatus = 'in_game';
+        ws.lobbyStatus           = 'in_game';
+        broadcastLobbyState();
+
+        send(challengerWs, { type: 'GAME_START', roomId, yourRole: 'p1', opponentName: ws.playerName, firstPlayer });
+        send(ws,           { type: 'GAME_START', roomId, yourRole: 'p2', opponentName: challengerWs.playerName, firstPlayer });
+        console.log(`Challenge game: ${challengerWs.playerName} vs ${ws.playerName}`);
+        break;
+      }
+
+      // ── Game actions ─────────────────────────────────────────────────────────
       case 'PLAY_CARD':
       case 'ATTACK':
       case 'END_TURN':
@@ -136,21 +354,14 @@ wss.on('connection', (ws) => {
       case 'ZONE_REPLACE':
       case 'GAME_ACTION': {
         const opponent = getOpponent(ws);
-        if (opponent) {
-          send(opponent, { ...msg, fromOpponent: true });
-        }
+        if (opponent) send(opponent, { ...msg, fromOpponent: true });
         break;
       }
 
       case 'CHAT': {
         const room = rooms.get(ws.roomId);
         if (!room) break;
-        const chatMsg = {
-          type: 'CHAT',
-          from: ws.playerName,
-          text: String(msg.text).slice(0, 300),
-          timestamp: Date.now(),
-        };
+        const chatMsg = { type: 'CHAT', from: ws.playerName, text: String(msg.text).slice(0, 300), timestamp: Date.now() };
         send(room.p1, chatMsg);
         send(room.p2, chatMsg);
         break;
@@ -158,35 +369,40 @@ wss.on('connection', (ws) => {
 
       case 'GAME_OVER': {
         const room = rooms.get(ws.roomId);
-        if (!room) break;
-        const winnerName = msg.winner === 'p1' ? room.p1Name : room.p2Name;
-        const loserName  = msg.winner === 'p1' ? room.p2Name : room.p1Name;
-        recordResult(winnerName, loserName);
-        const result = {
-          type: 'GAME_OVER',
-          winner: msg.winner,
-          winnerName,
-          loserName,
-        };
-        send(room.p1, result);
-        send(room.p2, result);
-        rooms.delete(ws.roomId);
-        console.log(`Game over: ${winnerName} beat ${loserName}`);
+        if (!room || room.resultRecorded) break;
+        room.resultRecorded = true;
+
+        const winnerWs = msg.winner === 'p1' ? room.p1 : room.p2;
+        const loserWs  = msg.winner === 'p1' ? room.p2 : room.p1;
+        recordResult(winnerWs, loserWs);
+
+        send(room.p1, { type: 'GAME_OVER', winner: msg.winner, winnerName: room.p1Name, loserName: room.p2Name });
+        send(room.p2, { type: 'GAME_OVER', winner: msg.winner, winnerName: room.p1Name, loserName: room.p2Name });
+
+        // Keep room alive for potential rematch; return players to lobby state
+        [room.p1, room.p2].forEach(p => {
+          if (p.authUsername && lobbyPlayers.has(p.authUsername)) p.lobbyStatus = 'lobby';
+        });
+        broadcastLobbyState();
+        console.log(`Game over: ${room.p1Name} vs ${room.p2Name}, winner=${msg.winner}`);
         break;
       }
 
       case 'REMATCH_REQUEST': {
         const opponent = getOpponent(ws);
-        if (opponent) {
-          send(opponent, { type: 'REMATCH_REQUEST', from: ws.playerName });
-        }
+        if (opponent) send(opponent, { type: 'REMATCH_REQUEST', from: ws.playerName });
         break;
       }
 
       case 'REMATCH_ACCEPT': {
         const room = rooms.get(ws.roomId);
         if (!room) break;
-        const firstPlayer = Math.random() < 0.5 ? 1 : 2;
+        room.resultRecorded = false;
+        const firstPlayer   = Math.random() < 0.5 ? 1 : 2;
+        [room.p1, room.p2].forEach(p => {
+          if (p.authUsername && lobbyPlayers.has(p.authUsername)) p.lobbyStatus = 'in_game';
+        });
+        broadcastLobbyState();
         send(room.p1, { type: 'REMATCH_START', yourRole: 'p1', firstPlayer });
         send(room.p2, { type: 'REMATCH_START', yourRole: 'p2', firstPlayer });
         break;
@@ -194,9 +410,8 @@ wss.on('connection', (ws) => {
 
       case 'REMATCH_DECLINE': {
         const opponent = getOpponent(ws);
-        if (opponent) {
-          send(opponent, { type: 'REMATCH_DECLINE' });
-        }
+        if (opponent) send(opponent, { type: 'REMATCH_DECLINE' });
+        rooms.delete(ws.roomId);
         break;
       }
     }
@@ -206,31 +421,42 @@ wss.on('connection', (ws) => {
     if (waitingPlayer === ws) {
       waitingPlayer = null;
       console.log(`${ws.playerName} left the queue`);
-      return;
     }
+
+    if (ws.authUsername) {
+      lobbyPlayers.delete(ws.authUsername);
+      // Cancel challenges from this player
+      if (pendingChallenges.has(ws.authUsername)) {
+        clearTimeout(pendingChallenges.get(ws.authUsername).timer);
+        pendingChallenges.delete(ws.authUsername);
+      }
+      // Cancel challenges targeting this player
+      for (const [k, v] of pendingChallenges.entries()) {
+        if (v.targetUsername === ws.authUsername) {
+          clearTimeout(v.timer);
+          pendingChallenges.delete(k);
+          const challenger = lobbyPlayers.get(k);
+          if (challenger) send(challenger, { type: 'CHALLENGE_RESULT', accepted: false, reason: 'Player disconnected' });
+        }
+      }
+      broadcastLobbyState();
+    }
+
     const opponent = getOpponent(ws);
     if (opponent) {
-      send(opponent, {
-        type: 'OPPONENT_DISCONNECTED',
-        message: `${ws.playerName} disconnected.`,
-      });
-      recordResult(opponent.playerName, ws.playerName);
+      send(opponent, { type: 'OPPONENT_DISCONNECTED', message: `${ws.playerName} disconnected.` });
+      recordResult(opponent, ws);
     }
-    if (ws.roomId) {
-      rooms.delete(ws.roomId);
-      console.log(`Room ${ws.roomId.slice(0, 8)} closed (disconnect)`);
-    }
+    if (ws.roomId) rooms.delete(ws.roomId);
   });
 
   ws.on('error', (err) => {
-    console.error(`WS error for ${ws.playerName}:`, err.message);
+    console.error(`WS error [${ws.playerName || ws.id}]:`, err.message);
   });
 });
 
 function send(ws, data) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(data));
-  }
+  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
 }
 
 function getOpponent(ws) {
@@ -241,10 +467,7 @@ function getOpponent(ws) {
 
 const heartbeat = setInterval(() => {
   wss.clients.forEach((ws) => {
-    if (!ws.isAlive) {
-      ws.terminate();
-      return;
-    }
+    if (!ws.isAlive) { ws.terminate(); return; }
     ws.isAlive = false;
     ws.ping();
   });
