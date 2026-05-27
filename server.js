@@ -45,12 +45,21 @@ db.exec(`
     result            TEXT CHECK(result IN ('win','loss')),
     played_at         TEXT DEFAULT (datetime('now'))
   );
-  CREATE TABLE IF NOT EXISTS splash_visits (
-    id    INTEGER PRIMARY KEY CHECK (id = 1),
-    total INTEGER DEFAULT 0
-  );
-  INSERT OR IGNORE INTO splash_visits (id, total) VALUES (1, 0);
 `);
+
+// Separate exec so a schema mismatch from a prior deploy doesn't crash startup
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS splash_visits (id INTEGER PRIMARY KEY CHECK (id=1), total INTEGER DEFAULT 0);
+    INSERT OR IGNORE INTO splash_visits (id, total) VALUES (1, 0);
+  `);
+} catch {
+  db.exec(`
+    DROP TABLE IF EXISTS splash_visits;
+    CREATE TABLE splash_visits (id INTEGER PRIMARY KEY CHECK (id=1), total INTEGER DEFAULT 0);
+    INSERT INTO splash_visits VALUES (1, 0);
+  `);
+}
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json());
