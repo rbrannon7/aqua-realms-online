@@ -45,6 +45,11 @@ db.exec(`
     result            TEXT CHECK(result IN ('win','loss')),
     played_at         TEXT DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS splash_visits (
+    id    INTEGER PRIMARY KEY CHECK (id = 1),
+    count INTEGER DEFAULT 0
+  );
+  INSERT OR IGNORE INTO splash_visits (id, count) VALUES (1, 0);
 `);
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
@@ -147,6 +152,16 @@ app.get('/api/stats/:username', (req, res) => {
   `).get(req.params.username);
   if (!user) return res.status(404).json({ error: 'Player not found' });
   res.json(user);
+});
+
+app.post('/api/splash-visit', (req, res) => {
+  const { count } = db.prepare('UPDATE splash_visits SET count = count + 1 WHERE id = 1 RETURNING count').get();
+  res.json({ count });
+});
+
+app.get('/api/splash-visit', (req, res) => {
+  const { count } = db.prepare('SELECT count FROM splash_visits WHERE id = 1').get();
+  res.json({ count });
 });
 
 app.get('/api/health', (req, res) => {
