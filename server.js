@@ -47,9 +47,9 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS splash_visits (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
-    count INTEGER DEFAULT 0
+    total INTEGER DEFAULT 0
   );
-  INSERT OR IGNORE INTO splash_visits (id, count) VALUES (1, 0);
+  INSERT OR IGNORE INTO splash_visits (id, total) VALUES (1, 0);
 `);
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
@@ -155,13 +155,14 @@ app.get('/api/stats/:username', (req, res) => {
 });
 
 app.post('/api/splash-visit', (req, res) => {
-  const { count } = db.prepare('UPDATE splash_visits SET count = count + 1 WHERE id = 1 RETURNING count').get();
-  res.json({ count });
+  db.prepare('UPDATE splash_visits SET total = total + 1 WHERE id = 1').run();
+  const { total } = db.prepare('SELECT total FROM splash_visits WHERE id = 1').get();
+  res.json({ count: total });
 });
 
 app.get('/api/splash-visit', (req, res) => {
-  const { count } = db.prepare('SELECT count FROM splash_visits WHERE id = 1').get();
-  res.json({ count });
+  const { total } = db.prepare('SELECT total FROM splash_visits WHERE id = 1').get();
+  res.json({ count: total });
 });
 
 app.get('/api/health', (req, res) => {
