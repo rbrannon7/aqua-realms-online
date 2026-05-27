@@ -49,8 +49,9 @@ db.exec(`
 
 // ─── Splash visit counter (flat file — avoids SQLite migration issues) ────────
 const COUNTER_FILE = path.join(DB_DIR, 'splash-visits.txt');
+const VISIT_SEED = 20;
 function readVisitCount() {
-  try { return parseInt(fs.readFileSync(COUNTER_FILE, 'utf8'), 10) || 0; } catch { return 0; }
+  try { return Math.max(VISIT_SEED, parseInt(fs.readFileSync(COUNTER_FILE, 'utf8'), 10) || 0); } catch { return VISIT_SEED; }
 }
 function writeVisitCount(n) {
   try { fs.writeFileSync(COUNTER_FILE, String(n)); } catch {}
