@@ -777,7 +777,11 @@ html, body { height: 100%; }
 .splash-lotr-title { font-family:'Orbitron',monospace; font-size:0.8rem; color:#c9a84c; text-align:center; letter-spacing:0.06em; text-transform:uppercase; line-height:1.6; }
 .splash-lotr-cover { width:100%; border-radius:10px; box-shadow:0 0 30px rgba(201,168,76,0.25); }
 .splash-lotr-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:88%; }
-.splash-lotr-card { width:100%; border-radius:8px; box-shadow:0 0 12px rgba(201,168,76,0.15); }
+.splash-lotr-card { width:100%; border-radius:8px; box-shadow:0 0 12px rgba(201,168,76,0.15); cursor:zoom-in; transition:transform 0.15s; }
+.splash-lotr-card:hover { transform:scale(1.04); }
+.lotr-lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; cursor:zoom-out; }
+.lotr-lightbox.open { display:flex; }
+.lotr-lightbox img { max-width:92vw; max-height:92vh; border-radius:12px; box-shadow:0 0 60px rgba(201,168,76,0.35); }
 
 /* ===== AUTH SCREENS ===== */
 .auth-screen-wrap { display:flex; flex-direction:column; align-items:center; padding:2rem 1rem; max-width:420px; margin:0 auto; width:100%; }
@@ -6364,6 +6368,22 @@ window.arShowResult = function(...args) {
   turnTimerStop();
   _origArShowResult(...args);
 };
+</script>
+
+<div id="lotrLightbox" class="lotr-lightbox" onclick="this.classList.remove('open')">
+  <img id="lotrLightboxImg" src="" alt="">
+</div>
+
+<script>
+document.querySelectorAll('.splash-lotr-card').forEach(img => {
+  img.addEventListener('click', () => {
+    document.getElementById('lotrLightboxImg').src = img.src;
+    document.getElementById('lotrLightbox').classList.add('open');
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('lotrLightbox').classList.remove('open');
+});
 </script>
 
 </body>
