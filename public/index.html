@@ -428,6 +428,33 @@ html, body { height: 100%; }
 .log-entry.damage-log { color:var(--green); font-weight:400; }
 .log-entry.heal-log { color:var(--green); font-weight:400; }
 
+/* ===== ACTION TOAST ===== */
+#actionToast {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-16px);
+  background: rgba(10,18,30,0.92);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+#actionToast.toast-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#actionToast.toast-attack  { border-color: #ff4466; color: #ff8899; }
+#actionToast.toast-creature{ border-color: #00cfff; color: #7de8ff; }
+#actionToast.toast-plant   { border-color: #66ff99; color: #99ffcc; }
+#actionToast.toast-event   { border-color: #cc88ff; color: #ddaaff; }
+
 /* ===== BOTTOM PLAYER AREA ===== */
 .player-bottom-area {
   display: flex;
@@ -5429,6 +5456,26 @@ function arDoLocalEndTurn() {
   arRefreshTurnBadge();
 }
 
+// ─── Action toast (opponent plays only) ──────────────────────────────────────
+const _toastQueue = [];
+let _toastBusy = false;
+function showActionToast(text, type = 'creature') {
+  _toastQueue.push({ text, type });
+  if (!_toastBusy) _runToast();
+}
+function _runToast() {
+  if (!_toastQueue.length) { _toastBusy = false; return; }
+  _toastBusy = true;
+  const { text, type } = _toastQueue.shift();
+  const el = document.getElementById('actionToast');
+  el.textContent = text;
+  el.className = 'toast-' + type + ' toast-show';
+  setTimeout(() => {
+    el.classList.remove('toast-show');
+    setTimeout(_runToast, 350);
+  }, 2500);
+}
+
 // ─── Opponent played a card ───────────────────────────────────────────────────
 function arDoPlayCard(msg) {
   const side  = arOppSide();
@@ -5454,8 +5501,10 @@ function arDoPlayCard(msg) {
       if (msg.replaceUid && msg.discardedCardId) {
         const oldCard = cardById(msg.discardedCardId);
         log('Discarded ' + (oldCard ? oldCard.name : 'a creature') + ' and played ' + card.name + ' in the Creature Zone!', logCls);
+        showActionToast('Opponent replaced ' + (oldCard ? oldCard.name : 'a creature') + ' with ' + card.name, 'creature');
       } else {
         log('Played ' + card.name + '.', logCls);
+        showActionToast('Opponent played ' + card.name, 'creature');
       }
       applyEnterPlayEffects(inst, side);
     }
@@ -5473,14 +5522,17 @@ function arDoPlayCard(msg) {
       if (msg.replaceUid && msg.discardedCardId) {
         const oldCard = cardById(msg.discardedCardId);
         log('Discarded ' + (oldCard ? oldCard.name : 'a plant') + ' and played ' + card.name + (ws > 0 ? ' (+' + ws + ' WP)' : '') + ' in the Plant Zone!', logCls);
+        showActionToast('Opponent replaced ' + (oldCard ? oldCard.name : 'a plant') + ' with ' + card.name, 'plant');
       } else {
         log('Played ' + card.name + (ws > 0 ? ' (+' + ws + ' WP)' : '') + '.', logCls);
+        showActionToast('Opponent played ' + card.name + (ws > 0 ? ' (+' + ws + ' WP)' : ''), 'plant');
       }
       applyPlantEnterEffects(inst, side);
     }
   } else if (card.type === 'event') {
     state.discard.push(msg.cardId);
     log('Played ' + card.name + '!', logCls);
+    showActionToast('Opponent played ' + card.name + '!', 'event');
     sfxEvent();
     resolveEvent(card, side);
   }
@@ -5503,6 +5555,7 @@ function arDoAttack(msg) {
   if (msg.targetUid === 'wp') {
     GS[defSide].wp = Math.max(0, GS[defSide].wp - atk);
     log(cardById(attacker.cardId).name + ' hit opponent\'s Water Parameters for ' + atk + '! (Opponent WP: ' + GS[defSide].wp + ')', logCls);
+    showActionToast(cardById(attacker.cardId).name + ' hit your Water Parameters for ' + atk + '!', 'attack');
     showDmgPop('-' + atk, '#ff4466', defSide === 'player' ? 'player-wp-num' : 'cpu-wp-num');
     flashWP(defSide);
   } else {
@@ -5513,6 +5566,7 @@ function arDoAttack(msg) {
       const atkDmg  = applyDamageReduction(atk, target, defSide);
       const ctrDmg  = applyDamageReduction(getEffectiveAtk(target, defSide), attacker, atkSide);
       log(cardById(attacker.cardId).name + ' attacked ' + cardById(target.cardId).name + '!', logCls);
+      showActionToast(cardById(attacker.cardId).name + ' attacked ' + cardById(target.cardId).name + '!', 'attack');
       if (atkSpd > defSpd) {
         dealDamage(target, atkDmg, defSide);
         if (target.currentHp > 0) dealDamage(attacker, ctrDmg, atkSide);
@@ -6386,5 +6440,6 @@ document.addEventListener('keydown', e => {
 });
 </script>
 
+<div id="actionToast"></div>
 </body>
 </html>
