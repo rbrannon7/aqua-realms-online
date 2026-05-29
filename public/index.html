@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Aqua Realms TCG</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -459,6 +459,7 @@ html, body { height: 100%; }
 .player-bottom-area {
   display: flex;
   flex-direction: row;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
   background: var(--bg2);
   border-top: 2px solid rgba(255,255,255,0.28);
   flex-shrink: 0;
@@ -490,7 +491,7 @@ html, body { height: 100%; }
   align-items:stretch; flex-shrink:0; justify-content:center;
   min-width: 108px;
 }
-.act-btn { font-family:'Orbitron',monospace; font-size:0.6rem; font-weight:700; padding:0.42rem 0.7rem; border-radius:8px; cursor:pointer; border:2px solid; transition:all 0.2s; letter-spacing:0.04em; text-align:center; }
+.act-btn { font-family:'Orbitron',monospace; font-size:0.6rem; font-weight:700; padding:0.42rem 0.7rem; border-radius:8px; cursor:pointer; border:2px solid; transition:all 0.2s; letter-spacing:0.04em; text-align:center; min-height:44px; }
 .act-btn:disabled { opacity:0.25; cursor:not-allowed; }
 .act-btn.play-btn { border-color:var(--green); color:var(--green); background:rgba(127,255,0,0.08); }
 .act-btn.play-btn:hover:not(:disabled) { background:rgba(127,255,0,0.2); box-shadow:0 0 12px rgba(127,255,0,0.3); }
