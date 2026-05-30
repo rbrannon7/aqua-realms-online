@@ -5714,13 +5714,12 @@ window.update2PActionButtons = function() {
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 function arShowChatPanel() {
   const panel = document.getElementById('chat-panel');
+  panel.style.display = 'flex';
   if (window.innerWidth <= 700) {
+    panel.style.display = 'none';
     document.getElementById('mobile-chat-btn').style.display = 'block';
-    // on mobile the user opens chat via the topbar button
-  } else {
-    panel.style.display = 'flex';
   }
-  arChatOpen = false;
+  arChatOpen = true;
 }
 
 function toggleChat() {
@@ -5728,7 +5727,14 @@ function toggleChat() {
     const panel = document.getElementById('chat-panel');
     const opening = panel.style.display === 'none' || panel.style.display === '';
     panel.style.display = opening ? 'flex' : 'none';
-    if (opening) { arUnread = 0; document.getElementById('chatPanelLabel').textContent = '💬 CHAT'; }
+    if (opening) {
+      document.getElementById('chatBody').style.display = 'flex';
+      arChatOpen = true;
+      arUnread = 0;
+      document.getElementById('chatPanelLabel').textContent = '💬 CHAT';
+    } else {
+      arChatOpen = false;
+    }
     return;
   }
   arChatOpen = !arChatOpen;
