@@ -1032,7 +1032,7 @@ html, body { height: 100%; }
 <body>
 
 <!-- Background music -->
-<audio id="bgMusic" loop preload="none">
+<audio id="bgMusic" loop preload="auto">
   <source src="theme.ogg" type="audio/ogg">
   <source src="theme.mp3" type="audio/mpeg">
 </audio>
@@ -6550,10 +6550,9 @@ document.addEventListener('keydown', e => {
 
   function startMusic() {
     if (started) return;
-    started = true;
     music.volume = 0.35;
     applyMute();
-    music.play().catch(() => {});
+    music.play().then(() => { started = true; }).catch(() => {});
   }
 
   btn.addEventListener('click', (e) => {
@@ -6564,8 +6563,8 @@ document.addEventListener('keydown', e => {
     startMusic();
   });
 
-  document.addEventListener('click', startMusic, { once: true });
-  document.addEventListener('keydown', startMusic, { once: true });
+  document.addEventListener('click', startMusic, true);
+  document.addEventListener('keydown', startMusic, true);
 
   applyMute();
 })();
