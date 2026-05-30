@@ -5732,6 +5732,7 @@ function toggleChat() {
       arChatOpen = true;
       arUnread = 0;
       document.getElementById('chatPanelLabel').textContent = '💬 CHAT';
+      document.getElementById('mobile-chat-btn').textContent = '💬 CHAT';
     } else {
       arChatOpen = false;
     }
@@ -5757,6 +5758,8 @@ function arReceiveChat(from, text) {
   if (!arChatOpen) {
     arUnread++;
     document.getElementById('chatPanelLabel').textContent = `💬 CHAT (${arUnread})`;
+    const mobileBtn = document.getElementById('mobile-chat-btn');
+    if (mobileBtn && mobileBtn.style.display !== 'none') mobileBtn.textContent = `💬 CHAT (${arUnread})`;
   }
 }
 
