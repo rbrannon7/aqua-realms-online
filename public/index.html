@@ -5030,7 +5030,7 @@ function arHandle(msg) {
       if (msg.fromOpponent) arDoPlayCard(msg);
       break;
     case 'CHAT':
-      if (msg.from !== arMyName) arReceiveChat(msg.from, msg.text);
+      arReceiveChat(msg.from, msg.text);
       break;
     case 'GAME_OVER': {
       // If checkWin() already set GS.gameOver and showed the result locally, skip
