@@ -1653,7 +1653,7 @@ const CARDS = [
     backFacts: { lifespan:"3-5 Years", size:"1-1.5 inches", schoolSize:"1 or 6+", tankSize:"5 Gallons+ for 1 / 20 Gallons+ for 6", temp:"74-80 F", diet:"Carnivorous; live and frozen foods such as snails, bloodworms, blackworms, & brine shrimp" }
   },
   {
-    id: 14, name: "Betta Fish", cardNum: 14,
+    id: 14, name: "Betta Fish", thumbName: "Betta", cardNum: 14,
     type: "creature", subtype: "Fish", biome: "Asian", rarity: "Common",
     atk: 5, hp: 10, spd: 4, cost: 4,
     frontFile: "Betta Fish--Front",
@@ -4464,7 +4464,7 @@ function renderBoard(who) {
         </div>
         <div class="status-icons">${statusIcons}</div>
         <div class="card-hp-bar"><div class="card-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
-        <div class="card-name-overlay">${card.name.split(' ').slice(-1)[0]}</div>
+        <div class="card-name-overlay">${card.thumbName || card.name.split(' ').slice(-1)[0]}</div>
       </div>`;
   });
 
@@ -4489,7 +4489,7 @@ function renderBoard(who) {
         <div class="card-stats-overlay">
           <span class="ws-val">💧+${wsVal}</span>
         </div>
-        <div class="card-name-overlay">${card.name.split(' ').slice(-1)[0]}</div>
+        <div class="card-name-overlay">${card.thumbName || card.name.split(' ').slice(-1)[0]}</div>
       </div>`;
   });
   for (let i = state.plants.length; i < 3; i++) {
