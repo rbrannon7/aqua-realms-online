@@ -1008,8 +1008,35 @@ html, body { height: 100%; }
 .zr-arrow { font-size: 1.5rem; color: var(--orange); text-align: center; margin-bottom: 0.8rem; animation: arrowPulse 1s ease-in-out infinite; }
 @keyframes arrowPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
+#muteBtn {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  z-index: 9999;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 2.4rem;
+  height: 2.4rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+#muteBtn:hover { opacity: 1; border-color: var(--border-bright); }
+
 </style>
 <body>
+
+<!-- Background music -->
+<audio id="bgMusic" loop preload="none">
+  <source src="theme.ogg" type="audio/ogg">
+  <source src="theme.mp3" type="audio/mpeg">
+</audio>
+<button id="muteBtn" title="Toggle music">🔊</button>
 
 <!-- Animated bubbles background -->
 <div class="bubbles-bg" id="bubblesContainer"></div>
@@ -6508,5 +6535,40 @@ document.addEventListener('keydown', e => {
 </script>
 
 <div id="actionToast"></div>
+
+<script>
+(function() {
+  const music  = document.getElementById('bgMusic');
+  const btn    = document.getElementById('muteBtn');
+  let started  = false;
+  let muted    = localStorage.getItem('arMusicMuted') === 'true';
+
+  function applyMute() {
+    music.muted = muted;
+    btn.textContent = muted ? '🔇' : '🔊';
+  }
+
+  function startMusic() {
+    if (started) return;
+    started = true;
+    music.volume = 0.35;
+    applyMute();
+    music.play().catch(() => {});
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    muted = !muted;
+    localStorage.setItem('arMusicMuted', muted);
+    applyMute();
+    startMusic();
+  });
+
+  document.addEventListener('click', startMusic, { once: true });
+  document.addEventListener('keydown', startMusic, { once: true });
+
+  applyMute();
+})();
+</script>
 </body>
 </html>
