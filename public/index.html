@@ -5712,7 +5712,12 @@ window.update2PActionButtons = function() {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 function arShowChatPanel() {
-  document.getElementById('chat-panel').style.display = 'flex';
+  const panel = document.getElementById('chat-panel');
+  panel.style.display = 'flex';
+  if (window.innerWidth <= 700) {
+    const topbar = document.querySelector('.game-topbar');
+    if (topbar) panel.style.top = topbar.getBoundingClientRect().bottom + 'px';
+  }
   arChatOpen = true;
 }
 
