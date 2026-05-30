@@ -1399,7 +1399,7 @@ html, body { height: 100%; }
     <div id="activeTurnBadge" style="display:none;font-family:'Orbitron',monospace;font-size:0.65rem;padding:0.3rem 0.8rem;border-radius:99px;font-weight:700;letter-spacing:0.08em;"></div>
     <div id="turnTimer" style="display:none;font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900;color:var(--red);min-width:52px;text-align:center;text-shadow:0 0 14px rgba(255,68,102,0.7);letter-spacing:0.04em;">2:00</div>
   </div>
-  <button id="mobile-chat-btn" onclick="toggleChat()" style="display:none;position:fixed;top:54px;right:8px;z-index:900;background:var(--bg2);border:2px solid #00cc88;color:#00cc88;font-size:0.85rem;padding:0.4rem 0.6rem;border-radius:10px;cursor:pointer;box-shadow:0 2px 12px rgba(0,204,136,0.3);font-weight:700;font-family:'Exo 2',sans-serif;">💬 CHAT</button>
+  <button id="mobile-chat-btn" onclick="toggleChat()" style="display:none;position:fixed;top:54px;right:8px;z-index:900;background:var(--bg2);border:2px solid #00cc88;color:#00cc88;font-size:0.85rem;padding:0.4rem 0.6rem;border-radius:10px;cursor:pointer;box-shadow:0 2px 12px rgba(0,204,136,0.3);font-weight:700;font-family:'Exo 2',sans-serif;overflow:visible;">💬 CHAT<span id="chat-unread-badge" style="display:none;position:absolute;top:-8px;right:-8px;background:#ff4466;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65rem;font-weight:700;align-items:center;justify-content:center;line-height:1;padding:0 3px;box-shadow:0 0 6px rgba(255,68,102,0.6);"></span></button>
 
   <!-- ===== MAIN GAME BODY ===== -->
   <div class="battlefield">
@@ -5732,7 +5732,8 @@ function toggleChat() {
       arChatOpen = true;
       arUnread = 0;
       document.getElementById('chatPanelLabel').textContent = '💬 CHAT';
-      document.getElementById('mobile-chat-btn').textContent = '💬 CHAT';
+      const badge = document.getElementById('chat-unread-badge');
+      if (badge) badge.style.display = 'none';
     } else {
       arChatOpen = false;
     }
@@ -5762,8 +5763,8 @@ function arReceiveChat(from, text) {
   if (!arChatOpen) {
     arUnread++;
     document.getElementById('chatPanelLabel').textContent = `💬 CHAT (${arUnread})`;
-    const mobileBtn = document.getElementById('mobile-chat-btn');
-    if (mobileBtn && mobileBtn.style.display !== 'none') mobileBtn.textContent = `💬 CHAT (${arUnread})`;
+    const badge = document.getElementById('chat-unread-badge');
+    if (badge) { badge.textContent = arUnread; badge.style.display = 'flex'; }
   }
 }
 
