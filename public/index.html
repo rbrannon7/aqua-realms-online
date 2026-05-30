@@ -514,7 +514,6 @@ html, body { height: 100%; }
   .hand-card { width:72px; height:102px; }
   .player-bottom-area { flex-direction: column; }
   .action-bar { flex-direction: row; min-width: unset; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); }
-  #chat-panel { bottom:auto !important; top:calc(48px + env(safe-area-inset-top)) !important; border-radius:0 0 12px 12px !important; border-top:none !important; border-bottom:2px solid #00cc88 !important; box-shadow:0 4px 24px rgba(0,204,136,0.18) !important; }
 }
 /* damage/heal log colors handled in main log CSS above */
 
@@ -5715,8 +5714,11 @@ function arShowChatPanel() {
   const panel = document.getElementById('chat-panel');
   panel.style.display = 'flex';
   if (window.innerWidth <= 700) {
-    const topbar = document.querySelector('.game-topbar');
-    if (topbar) panel.style.top = topbar.getBoundingClientRect().bottom + 'px';
+    const bottomArea = document.querySelector('.player-bottom-area');
+    if (bottomArea) {
+      panel.style.top = 'auto';
+      panel.style.bottom = bottomArea.offsetHeight + 'px';
+    }
   }
   arChatOpen = true;
 }
