@@ -514,6 +514,7 @@ html, body { height: 100%; }
   .hand-card { width:72px; height:102px; }
   .player-bottom-area { flex-direction: column; }
   .action-bar { flex-direction: row; min-width: unset; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); }
+  #chat-panel { bottom:auto !important; top:48px !important; border-radius:0 0 12px 12px !important; border-top:none !important; border-bottom:2px solid #00cc88 !important; box-shadow:0 4px 24px rgba(0,204,136,0.18) !important; }
 }
 /* damage/heal log colors handled in main log CSS above */
 
@@ -1397,6 +1398,7 @@ html, body { height: 100%; }
     <div class="turn-badge" id="turnBadge">TURN 1</div>
     <div id="activeTurnBadge" style="display:none;font-family:'Orbitron',monospace;font-size:0.65rem;padding:0.3rem 0.8rem;border-radius:99px;font-weight:700;letter-spacing:0.08em;"></div>
     <div id="turnTimer" style="display:none;font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900;color:var(--red);min-width:52px;text-align:center;text-shadow:0 0 14px rgba(255,68,102,0.7);letter-spacing:0.04em;">2:00</div>
+    <button id="mobile-chat-btn" onclick="toggleChat()" style="display:none;background:transparent;border:1px solid #00cc88;color:#00cc88;font-size:0.75rem;padding:0.3rem 0.6rem;border-radius:8px;cursor:pointer;font-family:'Exo 2',sans-serif;font-weight:700;">💬</button>
   </div>
 
   <!-- ===== MAIN GAME BODY ===== -->
@@ -5712,18 +5714,23 @@ window.update2PActionButtons = function() {
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 function arShowChatPanel() {
   const panel = document.getElementById('chat-panel');
-  panel.style.display = 'flex';
   if (window.innerWidth <= 700) {
-    const bottomArea = document.querySelector('.player-bottom-area');
-    if (bottomArea) {
-      panel.style.top = 'auto';
-      panel.style.bottom = bottomArea.offsetHeight + 'px';
-    }
+    document.getElementById('mobile-chat-btn').style.display = 'block';
+    // on mobile the user opens chat via the topbar button
+  } else {
+    panel.style.display = 'flex';
   }
-  arChatOpen = true;
+  arChatOpen = false;
 }
 
 function toggleChat() {
+  if (window.innerWidth <= 700) {
+    const panel = document.getElementById('chat-panel');
+    const opening = panel.style.display === 'none' || panel.style.display === '';
+    panel.style.display = opening ? 'flex' : 'none';
+    if (opening) { arUnread = 0; document.getElementById('chatPanelLabel').textContent = '💬 CHAT'; }
+    return;
+  }
   arChatOpen = !arChatOpen;
   document.getElementById('chatBody').style.display = arChatOpen ? 'flex' : 'none';
   document.getElementById('chatToggleBtn').textContent = arChatOpen ? '▼' : '▲';
