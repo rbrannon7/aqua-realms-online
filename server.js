@@ -383,8 +383,8 @@ wss.on('connection', (ws) => {
         const room = rooms.get(ws.roomId);
         if (!room) break;
         const chatMsg = { type: 'CHAT', from: ws.playerName, text: String(msg.text).slice(0, 300), timestamp: Date.now() };
-        send(room.p1, chatMsg);
-        send(room.p2, chatMsg);
+        const chatOpponent = room.p1 === ws ? room.p2 : room.p1;
+        send(chatOpponent, chatMsg);
         break;
       }
 
