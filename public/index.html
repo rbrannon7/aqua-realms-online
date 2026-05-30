@@ -5747,7 +5747,11 @@ function toggleChat() {
 function sendChat() {
   const inp  = document.getElementById('chatInput');
   const text = inp.value.trim();
-  if (!text || !arWs || arWs.readyState !== 1) return;
+  if (!text) return;
+  if (!arWs || arWs.readyState !== 1) {
+    arAddChatMsg('system', '⚠ Not connected — message not sent.');
+    return;
+  }
   arWs.send(JSON.stringify({ type: 'CHAT', text }));
   arAddChatMsg('me', text);
   inp.value = '';
