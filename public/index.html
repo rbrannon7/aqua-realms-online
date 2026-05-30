@@ -5835,12 +5835,31 @@ async function loadLeaderboard() {
   const body = document.getElementById('leaderboardBody');
   body.innerHTML = '<div style="color:var(--text-dim);">Loading…</div>';
   try {
-    const data = await (await fetch('https://aqua-realms-online.onrender.com/api/leaderboard')).json();
-    if (!data.length) { body.innerHTML = '<div style="color:var(--text-dim);padding:1rem;">No games yet — be the first!</div>'; return; }
-    let h = `<table style="width:100%;border-collapse:collapse;font-size:0.82rem;"><tr style="color:#00cc88;font-weight:700;"><th style="padding:5px 8px;text-align:left;">#</th><th style="padding:5px 8px;text-align:left;">Player</th><th style="padding:5px 8px;text-align:center;">W</th><th style="padding:5px 8px;text-align:center;">L</th></tr>`;
-    data.forEach((p,i) => {
-      const m = ['🥇','🥈','🥉'][i] || `${i+1}.`;
-      h += `<tr style="background:${i%2===0?'rgba(255,255,255,0.03)':'transparent'};"><td style="padding:5px 8px;">${m}</td><td style="padding:5px 8px;font-weight:600;">${arEsc(p.username)}</td><td style="padding:5px 8px;text-align:center;color:#00cc88;">${p.wins}</td><td style="padding:5px 8px;text-align:center;color:#ff6666;">${p.losses}</td></tr>`;
+    const data = await (await fetch('/api/leaderboard')).json();
+    if (!data.length) { body.innerHTML = '<div style="color:var(--text-dim);padding:1rem;">No ranked players yet — play 10 games to qualify!</div>'; return; }
+    let h = `<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+      <tr style="color:#00cc88;font-weight:700;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">
+        <th style="padding:5px 8px;text-align:left;">#</th>
+        <th style="padding:5px 8px;text-align:left;">Player</th>
+        <th style="padding:5px 8px;text-align:center;">Rating</th>
+        <th style="padding:5px 8px;text-align:center;">W</th>
+        <th style="padding:5px 8px;text-align:center;">L</th>
+        <th style="padding:5px 8px;text-align:center;">WR%</th>
+        <th style="padding:5px 8px;text-align:center;">GP</th>
+      </tr>`;
+    data.forEach((p, i) => {
+      const m   = ['🥇','🥈','🥉'][i] || `${i+1}.`;
+      const isMe = arAuthUser && p.username === arAuthUser.username;
+      const bg  = isMe ? 'rgba(127,255,0,0.06)' : i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
+      h += `<tr style="background:${bg};">
+        <td style="padding:5px 8px;">${m}</td>
+        <td style="padding:5px 8px;font-weight:600;color:${isMe ? 'var(--green)' : 'var(--text)'};">${arEsc(p.username)}${isMe ? ' ✦' : ''}</td>
+        <td style="padding:5px 8px;text-align:center;color:var(--gold);font-weight:700;">${p.rating ?? 1000}</td>
+        <td style="padding:5px 8px;text-align:center;color:#00cc88;">${p.wins}</td>
+        <td style="padding:5px 8px;text-align:center;color:#ff6666;">${p.losses}</td>
+        <td style="padding:5px 8px;text-align:center;">${p.win_rate}%</td>
+        <td style="padding:5px 8px;text-align:center;color:var(--text-dim);">${p.games_played}</td>
+      </tr>`;
     });
     body.innerHTML = h + '</table>';
   } catch(e) { body.innerHTML = '<div style="color:#ff6666;padding:1rem;">Could not reach server.</div>'; }
@@ -6110,13 +6129,14 @@ async function lbLoadLeaderboard() {
   try {
     const data = await (await fetch('/api/leaderboard')).json();
     if (!data.length) {
-      body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1.5rem;">No ranked games yet — be the first!</div>';
+      body.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1.5rem;">No ranked players yet — play 10 games to qualify!</div>';
       return;
     }
     let h = `<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
       <tr style="color:#00cc88;font-weight:700;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">
         <th style="padding:6px 6px 6px 8px;text-align:left;">#</th>
         <th style="padding:6px;text-align:left;">Player</th>
+        <th style="padding:6px;text-align:center;">Rating</th>
         <th style="padding:6px;text-align:center;">W</th>
         <th style="padding:6px;text-align:center;">L</th>
         <th style="padding:6px;text-align:center;">WR%</th>
@@ -6130,9 +6150,10 @@ async function lbLoadLeaderboard() {
       h += `<tr style="background:${rowBg};">
         <td style="padding:6px 6px 6px 8px;">${medal}</td>
         <td style="padding:6px;font-weight:600;color:${isMe ? 'var(--green)' : 'var(--text)'};">${arEsc(p.username)}${isMe ? ' ✦' : ''}</td>
+        <td style="padding:6px;text-align:center;color:var(--gold);font-weight:700;">${p.rating ?? 1000}</td>
         <td style="padding:6px;text-align:center;color:#00cc88;font-weight:700;">${p.wins}</td>
         <td style="padding:6px;text-align:center;color:#ff6666;">${p.losses}</td>
-        <td style="padding:6px;text-align:center;color:var(--gold);font-weight:700;">${p.win_rate}%</td>
+        <td style="padding:6px;text-align:center;">${p.win_rate}%</td>
         <td style="padding:6px;text-align:center;color:var(--text-dim);">${p.games_played}</td>
         <td style="padding:6px;text-align:center;color:var(--orange);">${p.longest_streak}</td>
       </tr>`;
@@ -6155,8 +6176,24 @@ async function lbLoadMyStats() {
     arUpdateLobbyStats();
     const wr     = d.games_played > 0 ? Math.round(d.wins * 100 / d.games_played) : null;
     const joined = d.created_at ? new Date(d.created_at + 'Z').toLocaleDateString() : '?';
+    const rating = d.rating ?? 1000;
+
+    const rankBadge = d.provisional
+      ? `<div style="text-align:center;margin-bottom:0.9rem;">
+           <span style="background:rgba(255,200,0,0.12);color:var(--gold);border:1px solid rgba(255,200,0,0.3);border-radius:20px;padding:0.25rem 0.9rem;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;">PROVISIONAL</span>
+           <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-dim);">Complete ${d.games_until_ranked} more ranked game${d.games_until_ranked === 1 ? '' : 's'} to appear on the leaderboard.</div>
+         </div>`
+      : `<div style="text-align:center;margin-bottom:0.9rem;">
+           <span style="background:rgba(0,204,136,0.1);color:var(--green);border:1px solid rgba(0,204,136,0.3);border-radius:20px;padding:0.25rem 0.9rem;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;">RANKED${d.rank ? ' — #' + d.rank : ''}</span>
+         </div>`;
+
     body.innerHTML = `
-      <div style="font-family:'Orbitron',monospace;font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.08em;">CAREER STATS — ${arEsc(d.username)}</div>
+      <div style="font-family:'Orbitron',monospace;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem;letter-spacing:0.08em;">CAREER STATS — ${arEsc(d.username)}</div>
+      <div style="text-align:center;margin-bottom:0.75rem;">
+        <div style="font-size:2rem;font-weight:900;color:var(--gold);font-family:'Orbitron',monospace;">${rating}</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase;">Rating</div>
+      </div>
+      ${rankBadge}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;">
         <div class="stat-pill"><div class="val" style="color:var(--green);">${d.wins}</div><div class="lbl">Wins</div></div>
         <div class="stat-pill"><div class="val" style="color:var(--red);">${d.losses}</div><div class="lbl">Losses</div></div>

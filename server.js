@@ -45,7 +45,23 @@ db.exec(`
     result            TEXT CHECK(result IN ('win','loss')),
     played_at         TEXT DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS match_history (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    match_id         TEXT    UNIQUE NOT NULL,
+    p1_id            INTEGER REFERENCES users(id),
+    p2_id            INTEGER REFERENCES users(id),
+    winner_id        INTEGER REFERENCES users(id),
+    loser_id         INTEGER REFERENCES users(id),
+    p1_rating_before INTEGER DEFAULT 1000,
+    p2_rating_before INTEGER DEFAULT 1000,
+    p1_rating_after  INTEGER DEFAULT 1000,
+    p2_rating_after  INTEGER DEFAULT 1000,
+    played_at        TEXT    DEFAULT (datetime('now')),
+    is_ranked        INTEGER DEFAULT 1
+  );
 `);
+// Migrate existing databases: add rating column if absent
+try { db.exec('ALTER TABLE users ADD COLUMN rating INTEGER DEFAULT 1000'); } catch {}
 
 // ─── Splash visit counter (flat file — avoids SQLite migration issues) ────────
 const COUNTER_FILE = path.join(DB_DIR, 'splash-visits.txt');
@@ -94,7 +110,7 @@ app.post('/api/auth/register', (req, res) => {
     ).run(username, email.toLowerCase(), hash);
 
     const user  = db.prepare(
-      'SELECT id, username, email, wins, losses, games_played, win_streak, longest_streak FROM users WHERE id = ?'
+      'SELECT id, username, email, wins, losses, games_played, win_streak, longest_streak, rating FROM users WHERE id = ?'
     ).get(result.lastInsertRowid);
     const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
     res.json({ token, user });
@@ -130,7 +146,7 @@ app.get('/api/auth/me', (req, res) => {
   const payload = verifyToken(req);
   if (!payload) return res.status(401).json({ error: 'Not authenticated' });
   const user = db.prepare(
-    'SELECT id, username, email, wins, losses, games_played, win_streak, longest_streak, created_at FROM users WHERE id = ?'
+    'SELECT id, username, email, wins, losses, games_played, win_streak, longest_streak, rating, created_at FROM users WHERE id = ?'
   ).get(payload.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ user });
@@ -139,11 +155,14 @@ app.get('/api/auth/me', (req, res) => {
 // ─── Leaderboard & stats ──────────────────────────────────────────────────────
 app.get('/api/leaderboard', (req, res) => {
   const rows = db.prepare(`
-    SELECT username, wins, losses, games_played, longest_streak,
+    SELECT username, rating, wins, losses, games_played, longest_streak,
            CASE WHEN games_played > 0 THEN ROUND(wins * 100.0 / games_played) ELSE 0 END AS win_rate
     FROM users
-    WHERE games_played > 0
-    ORDER BY wins DESC, win_rate DESC, losses ASC
+    WHERE games_played >= 10
+    ORDER BY rating DESC,
+             ROUND(wins * 100.0 / games_played) DESC,
+             wins DESC,
+             games_played DESC
     LIMIT 20
   `).all();
   res.json(rows);
@@ -151,12 +170,23 @@ app.get('/api/leaderboard', (req, res) => {
 
 app.get('/api/stats/:username', (req, res) => {
   const user = db.prepare(`
-    SELECT username, wins, losses, games_played, win_streak, longest_streak, created_at,
-           CASE WHEN games_played > 0 THEN ROUND(wins * 100.0 / games_played) ELSE 0 END AS win_rate
+    SELECT username, rating, wins, losses, games_played, win_streak, longest_streak, created_at,
+           CASE WHEN games_played > 0 THEN ROUND(wins * 100.0 / games_played) ELSE 0 END AS win_rate,
+           CASE WHEN games_played < 10 THEN 1 ELSE 0 END AS provisional,
+           CASE WHEN games_played < 10 THEN (10 - games_played) ELSE 0 END AS games_until_ranked
     FROM users WHERE username = ?
   `).get(req.params.username);
   if (!user) return res.status(404).json({ error: 'Player not found' });
-  res.json(user);
+
+  let rank = null;
+  if (!user.provisional) {
+    const rankRow = db.prepare(
+      'SELECT COUNT(*) + 1 AS rank FROM users WHERE games_played >= 10 AND rating > ?'
+    ).get(user.rating);
+    rank = rankRow?.rank ?? null;
+  }
+
+  res.json({ ...user, rank });
 });
 
 app.post('/api/splash-visit', (req, res) => {
@@ -194,24 +224,71 @@ function recordResult(winnerWs, loserWs) {
   const winnerName = winnerWs?.playerName || 'Unknown';
   const loserName  = loserWs?.playerName  || 'Unknown';
 
-  if (winnerWs?.authUserId) {
-    const cur       = db.prepare('SELECT win_streak FROM users WHERE id = ?').get(winnerWs.authUserId);
-    const newStreak = (cur?.win_streak || 0) + 1;
+  if (winnerWs?.authUserId && loserWs?.authUserId) {
+    // Both logged in — rated match with Elo
+    const winner = db.prepare('SELECT rating, games_played, win_streak FROM users WHERE id = ?').get(winnerWs.authUserId);
+    const loser  = db.prepare('SELECT rating, games_played, win_streak FROM users WHERE id = ?').get(loserWs.authUserId);
+
+    // Farming protection: max 5 ranked matches per day between the same two players
+    const todayCount = db.prepare(`
+      SELECT COUNT(*) AS cnt FROM match_history
+      WHERE is_ranked = 1 AND date(played_at) = date('now')
+        AND ((p1_id = ? AND p2_id = ?) OR (p1_id = ? AND p2_id = ?))
+    `).get(winnerWs.authUserId, loserWs.authUserId, loserWs.authUserId, winnerWs.authUserId).cnt;
+
+    const isRanked = todayCount < 5;
+
+    const winnerRatingBefore = winner.rating ?? 1000;
+    const loserRatingBefore  = loser.rating  ?? 1000;
+    let   winnerRatingAfter  = winnerRatingBefore;
+    let   loserRatingAfter   = loserRatingBefore;
+
+    if (isRanked) {
+      const winnerK   = winner.games_played < 10 ? 40 : 24;
+      const loserK    = loser.games_played  < 10 ? 40 : 24;
+      const winnerExp = 1 / (1 + Math.pow(10, (loserRatingBefore - winnerRatingBefore) / 400));
+      winnerRatingAfter = Math.round(winnerRatingBefore + winnerK * (1 - winnerExp));
+      loserRatingAfter  = Math.round(loserRatingBefore  + loserK  * (0 - (1 - winnerExp)));
+    }
+
+    const newStreak = (winner.win_streak ?? 0) + 1;
     db.prepare(`UPDATE users SET wins = wins + 1, games_played = games_played + 1,
-      win_streak = ?, longest_streak = MAX(longest_streak, ?) WHERE id = ?`)
-      .run(newStreak, newStreak, winnerWs.authUserId);
-    db.prepare('INSERT INTO game_history (user_id, opponent_username, result) VALUES (?,?,?)')
-      .run(winnerWs.authUserId, loserName, 'win');
+      win_streak = ?, longest_streak = MAX(longest_streak, ?), rating = ? WHERE id = ?`)
+      .run(newStreak, newStreak, winnerRatingAfter, winnerWs.authUserId);
+
+    db.prepare(`UPDATE users SET losses = losses + 1, games_played = games_played + 1,
+      win_streak = 0, rating = ? WHERE id = ?`)
+      .run(loserRatingAfter, loserWs.authUserId);
+
+    db.prepare(`INSERT INTO match_history
+      (match_id, p1_id, p2_id, winner_id, loser_id, p1_rating_before, p2_rating_before, p1_rating_after, p2_rating_after, is_ranked)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`)
+      .run(uuidv4(), winnerWs.authUserId, loserWs.authUserId,
+           winnerWs.authUserId, loserWs.authUserId,
+           winnerRatingBefore, loserRatingBefore, winnerRatingAfter, loserRatingAfter,
+           isRanked ? 1 : 0);
+
+    console.log(`Result: ${winnerName} (${winnerRatingBefore}→${winnerRatingAfter}) beat ${loserName} (${loserRatingBefore}→${loserRatingAfter})${isRanked ? '' : ' [unranked]'}`);
+  } else {
+    // At least one guest — update basic stats only, no rating change
+    if (winnerWs?.authUserId) {
+      const cur = db.prepare('SELECT win_streak FROM users WHERE id = ?').get(winnerWs.authUserId);
+      const newStreak = (cur?.win_streak ?? 0) + 1;
+      db.prepare(`UPDATE users SET wins = wins + 1, games_played = games_played + 1,
+        win_streak = ?, longest_streak = MAX(longest_streak, ?) WHERE id = ?`)
+        .run(newStreak, newStreak, winnerWs.authUserId);
+    }
+    if (loserWs?.authUserId) {
+      db.prepare('UPDATE users SET losses = losses + 1, games_played = games_played + 1, win_streak = 0 WHERE id = ?')
+        .run(loserWs.authUserId);
+    }
+    console.log(`Result: ${winnerName} beat ${loserName} (unrated — guest player)`);
   }
 
-  if (loserWs?.authUserId) {
-    db.prepare('UPDATE users SET losses = losses + 1, games_played = games_played + 1, win_streak = 0 WHERE id = ?')
-      .run(loserWs.authUserId);
-    db.prepare('INSERT INTO game_history (user_id, opponent_username, result) VALUES (?,?,?)')
-      .run(loserWs.authUserId, winnerName, 'loss');
-  }
-
-  console.log(`Result: ${winnerName} beat ${loserName}`);
+  if (winnerWs?.authUserId)
+    db.prepare('INSERT INTO game_history (user_id, opponent_username, result) VALUES (?,?,?)').run(winnerWs.authUserId, loserName, 'win');
+  if (loserWs?.authUserId)
+    db.prepare('INSERT INTO game_history (user_id, opponent_username, result) VALUES (?,?,?)').run(loserWs.authUserId, winnerName, 'loss');
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -232,7 +309,7 @@ wss.on('connection', (ws) => {
         try {
           const payload = jwt.verify(msg.token, JWT_SECRET);
           const user    = db.prepare(
-            'SELECT id, username, wins, losses, games_played FROM users WHERE id = ?'
+            'SELECT id, username, wins, losses, games_played, rating FROM users WHERE id = ?'
           ).get(payload.userId);
           if (!user) { send(ws, { type: 'AUTH_ERROR', error: 'User not found' }); break; }
           ws.authUserId   = user.id;
@@ -466,7 +543,11 @@ wss.on('connection', (ws) => {
     const opponent = getOpponent(ws);
     if (opponent) {
       send(opponent, { type: 'OPPONENT_DISCONNECTED', message: `${ws.playerName} disconnected.` });
-      recordResult(opponent, ws);
+      const roomOnClose = rooms.get(ws.roomId);
+      if (roomOnClose && !roomOnClose.resultRecorded) {
+        roomOnClose.resultRecorded = true;
+        recordResult(opponent, ws);
+      }
     }
     if (ws.roomId) rooms.delete(ws.roomId);
   });
