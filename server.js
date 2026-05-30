@@ -180,9 +180,18 @@ app.get('/api/stats/:username', (req, res) => {
 
   let rank = null;
   if (!user.provisional) {
-    const rankRow = db.prepare(
-      'SELECT COUNT(*) + 1 AS rank FROM users WHERE games_played >= 10 AND rating > ?'
-    ).get(user.rating);
+    const rankRow = db.prepare(`
+      SELECT COUNT(*) + 1 AS rank FROM users
+      WHERE games_played >= 10 AND (
+        rating > ? OR
+        (rating = ? AND ROUND(wins * 100.0 / games_played) > ?) OR
+        (rating = ? AND ROUND(wins * 100.0 / games_played) = ? AND wins > ?) OR
+        (rating = ? AND ROUND(wins * 100.0 / games_played) = ? AND wins = ? AND games_played > ?)
+      )
+    `).get(user.rating,
+           user.rating, user.win_rate,
+           user.rating, user.win_rate, user.wins,
+           user.rating, user.win_rate, user.wins, user.games_played);
     rank = rankRow?.rank ?? null;
   }
 
