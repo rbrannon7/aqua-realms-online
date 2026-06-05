@@ -60,8 +60,9 @@ db.exec(`
     is_ranked        INTEGER DEFAULT 1
   );
 `);
-// Migrate existing databases: add rating column if absent
+// Migrate existing databases
 try { db.exec('ALTER TABLE users ADD COLUMN rating INTEGER DEFAULT 1000'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN saved_deck TEXT'); } catch {}
 
 // ─── Splash visit counter (flat file — avoids SQLite migration issues) ────────
 const COUNTER_FILE = path.join(DB_DIR, 'splash-visits.txt');
@@ -196,6 +197,24 @@ app.get('/api/stats/:username', (req, res) => {
   }
 
   res.json({ ...user, rank });
+});
+
+app.get('/api/saved-deck', (req, res) => {
+  const payload = verifyToken(req);
+  if (!payload) return res.status(401).json({ error: 'Not authenticated' });
+  const user = db.prepare('SELECT saved_deck FROM users WHERE id = ?').get(payload.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ deck: user.saved_deck ? JSON.parse(user.saved_deck) : null });
+});
+
+app.post('/api/saved-deck', (req, res) => {
+  const payload = verifyToken(req);
+  if (!payload) return res.status(401).json({ error: 'Not authenticated' });
+  const { deck } = req.body || {};
+  if (!Array.isArray(deck) || deck.length !== 20)
+    return res.status(400).json({ error: 'Deck must be exactly 20 cards' });
+  db.prepare('UPDATE users SET saved_deck = ? WHERE id = ?').run(JSON.stringify(deck), payload.userId);
+  res.json({ ok: true });
 });
 
 app.post('/api/splash-visit', (req, res) => {

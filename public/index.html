@@ -1254,6 +1254,8 @@ html, body { height: 100%; }
   <div class="db-footer">
     <button class="btn-secondary" onclick="deckBuilderReset()" style="padding:0.7rem 0.8rem;font-size:0.75rem;">Reset</button>
     <button class="btn-secondary" onclick="_galleryFrom='deck-builder';showScreen('gallery')" style="padding:0.7rem 0.8rem;font-size:0.75rem;">Browse Cards</button>
+    <button class="btn-secondary" id="db-load-btn" onclick="dbLoadSavedDeck()" style="display:none;padding:0.7rem 0.8rem;font-size:0.75rem;">Load Saved</button>
+    <button class="btn-secondary" id="db-save-btn" onclick="dbSaveDeck()" style="display:none;padding:0.7rem 0.8rem;font-size:0.75rem;">Save Deck</button>
     <button class="btn-primary" id="db-confirm-btn" onclick="deckBuilderConfirm()">Confirm Deck (0/20)</button>
   </div>
   <div id="db-error-msg" class="db-error-msg"></div>
@@ -2668,6 +2670,7 @@ function openDeckBuilder(mode, buildFor) {
       forLabel.textContent = 'YOUR DECK';
     }
   }
+  dbUpdateSaveBtns();
   renderDeckBuilder();
   showScreen('deck-builder');
 }
@@ -2799,6 +2802,64 @@ function dbCloseViewer() {
 function deckBuilderReset() {
   DB_STATE.selection = {};
   renderDeckBuilder();
+}
+
+function dbUpdateSaveBtns() {
+  const loggedIn = !!(typeof arAuthToken !== 'undefined' && arAuthToken && !arIsGuest);
+  const saveBtn = document.getElementById('db-save-btn');
+  const loadBtn = document.getElementById('db-load-btn');
+  if (saveBtn) saveBtn.style.display = loggedIn ? '' : 'none';
+  if (loadBtn) loadBtn.style.display = loggedIn ? '' : 'none';
+}
+
+async function dbSaveDeck() {
+  const total     = dbGetTotal();
+  const creatures = dbGetCount('creature');
+  const plants    = dbGetCount('plant');
+  if (total !== 20 || creatures < 10 || plants < 5) {
+    dbShowToast('Complete your deck first (20 cards, 10+ creatures, 5+ plants)');
+    return;
+  }
+  const deckIds = [];
+  for (const [id, qty] of Object.entries(DB_STATE.selection)) {
+    for (let i = 0; i < qty; i++) deckIds.push(parseInt(id));
+  }
+  try {
+    const res = await fetch('/api/saved-deck', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${arAuthToken}` },
+      body: JSON.stringify({ deck: deckIds }),
+    });
+    dbShowToast(res.ok ? 'Deck saved!' : 'Failed to save deck');
+  } catch {
+    dbShowToast('Failed to save deck');
+  }
+}
+
+async function dbLoadSavedDeck() {
+  try {
+    const res = await fetch('/api/saved-deck', { headers: { 'Authorization': `Bearer ${arAuthToken}` } });
+    if (!res.ok) { dbShowToast('No saved deck found'); return; }
+    const data = await res.json();
+    if (!data.deck || !data.deck.length) { dbShowToast('No saved deck found'); return; }
+    DB_STATE.selection = {};
+    for (const id of data.deck) {
+      DB_STATE.selection[id] = (DB_STATE.selection[id] || 0) + 1;
+    }
+    renderDeckBuilder();
+    dbShowToast('Saved deck loaded!');
+  } catch {
+    dbShowToast('Failed to load saved deck');
+  }
+}
+
+function dbShowToast(msg) {
+  const el = document.getElementById('db-error-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el._toastTimer);
+  el._toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
 }
 
 function deckBuilderBack() {
