@@ -1,4 +1,4 @@
-const CACHE = 'aqua-realms-v1';
+const CACHE = 'aqua-realms-__DEPLOY_VERSION__';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', e => {

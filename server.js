@@ -76,6 +76,16 @@ function writeVisitCount(n) {
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json());
+
+// Serve sw.js with the deploy timestamp injected so every new deploy busts the cache automatically
+const DEPLOY_VERSION = Date.now().toString();
+const swTemplate = fs.readFileSync(path.join(__dirname, 'public', 'sw.js'), 'utf8');
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(swTemplate.replace('__DEPLOY_VERSION__', DEPLOY_VERSION));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
