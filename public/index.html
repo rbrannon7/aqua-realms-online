@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Aqua Realms TCG</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00cfff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AquaRealms">
+<link rel="apple-touch-icon" href="/aqua-realms-cover.jpg">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -112,6 +118,120 @@ html, body { height: 100%; }
 
 /* scrollbar */
 ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+/* ===== AQUARIUM VISUAL OVERHAUL ===== */
+
+/* 1. Aquarium tank glass walls */
+.battlefield {
+  box-shadow:
+    inset 5px 0 22px rgba(0, 150, 210, 0.14),
+    inset -5px 0 22px rgba(0, 150, 210, 0.10),
+    inset 0 5px 28px rgba(0, 180, 240, 0.18);
+  border-left: 3px solid rgba(100, 200, 240, 0.22);
+  border-right: 3px solid rgba(100, 200, 240, 0.16);
+}
+
+/* 2. Position context for caustic pseudo-elements; lift zones above them */
+.arena-cpu, .arena-player { position: relative; }
+.arena-zones { position: relative; z-index: 2; }
+
+/* Caustic light dapples — CPU side */
+.arena-cpu::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 90px 45px at 20% 40%, rgba(0,207,255,0.09) 0%, transparent 100%),
+    radial-gradient(ellipse 60px 30px at 58% 65%, rgba(0,207,255,0.07) 0%, transparent 100%),
+    radial-gradient(ellipse 110px 55px at 82% 25%, rgba(0,207,255,0.08) 0%, transparent 100%),
+    radial-gradient(ellipse 50px 25px at 42% 80%, rgba(0,150,255,0.06) 0%, transparent 100%);
+  animation: causticDrift 10s ease-in-out infinite alternate;
+}
+
+/* Caustic light dapples — Player side (offset timing) */
+.arena-player::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 80px 40px at 72% 38%, rgba(0,207,255,0.08) 0%, transparent 100%),
+    radial-gradient(ellipse 70px 35px at 28% 62%, rgba(0,207,255,0.07) 0%, transparent 100%),
+    radial-gradient(ellipse 100px 50px at 52% 22%, rgba(0,207,255,0.09) 0%, transparent 100%);
+  animation: causticDrift 14s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes causticDrift {
+  0%   { transform: translate(0, 0) scale(1);           opacity: 0.7;  }
+  25%  { transform: translate(18px, -10px) scale(1.06); opacity: 1;    }
+  50%  { transform: translate(-12px, 14px) scale(0.94); opacity: 0.75; }
+  75%  { transform: translate(24px,  7px) scale(1.08);  opacity: 0.9;  }
+  100% { transform: translate(-8px, -12px) scale(1.02); opacity: 0.8;  }
+}
+
+/* 3. Animated water surface divider — replaces the static border */
+.arena-cpu { border-bottom: none; }
+.arena-cpu::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,180,220,0.25) 8%,
+    rgba(0,207,255,0.65) 28%,
+    rgba(0,230,255,0.80) 50%,
+    rgba(0,207,255,0.65) 72%,
+    rgba(0,180,220,0.25) 92%,
+    transparent 100%
+  );
+  filter: blur(1.5px);
+  animation: waveDivider 4s ease-in-out infinite;
+  z-index: 20;
+  pointer-events: none;
+}
+@keyframes waveDivider {
+  0%,100% { transform: scaleY(1)   translateY(0);    opacity: 0.85; filter: blur(1.5px); }
+  25%     { transform: scaleY(1.8) translateY(-1px); opacity: 1;    filter: blur(0.5px); }
+  50%     { transform: scaleY(0.7) translateY(1px);  opacity: 0.65; filter: blur(2px);   }
+  75%     { transform: scaleY(1.4) translateY(-1px); opacity: 0.9;  filter: blur(1px);   }
+}
+
+/* 4. God rays — light streaming down through the water surface */
+#game::before {
+  content: '';
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  height: 50%;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    linear-gradient(175deg, rgba(0,200,255,0.04)  0%, transparent 55%),
+    linear-gradient(168deg, rgba(0,200,255,0.035) 10%, transparent 50%),
+    linear-gradient(183deg, rgba(0,185,255,0.05)  5%,  transparent 48%),
+    linear-gradient(172deg, rgba(0,220,255,0.030) 20%, transparent 58%),
+    linear-gradient(178deg, rgba(0,200,255,0.025) 30%, transparent 52%);
+  animation: godRays 18s ease-in-out infinite alternate;
+}
+@keyframes godRays {
+  0%   { opacity: 0.55; transform: skewX(0deg);    }
+  40%  { opacity: 1;    transform: skewX(0.8deg);  }
+  100% { opacity: 0.65; transform: skewX(-0.6deg); }
+}
+
+/* Realistic aquarium bubbles — clear blue-white instead of neon green */
+.bubble {
+  background: radial-gradient(circle at 32% 28%, rgba(200,240,255,0.28), rgba(0,180,220,0.04));
+  border: 1px solid rgba(150,220,255,0.35);
+  box-shadow: inset 0 0 4px rgba(200,240,255,0.12);
+}
 
 /* ===== GAME SCREEN ===== */
 #game { padding: 0; flex-direction: column; background: var(--bg); height: 100vh; overflow: hidden; }
@@ -6629,6 +6749,11 @@ document.addEventListener('keydown', e => {
 
   applyMute();
 })();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
 </script>
 </body>
 </html>

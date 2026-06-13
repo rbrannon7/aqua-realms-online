@@ -1,0 +1,18 @@
+{
+  "name": "Aqua Realms TCG",
+  "short_name": "AquaRealms",
+  "description": "Online aquarium trading card game",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060d0f",
+  "theme_color": "#00cfff",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/aqua-realms-cover.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
