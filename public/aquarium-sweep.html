@@ -132,7 +132,8 @@
     border:1px solid #1e4a52;
     box-shadow:inset 0 0 0 1px rgba(0,207,255,0.06);
   }
-  .cell.closed:active{ background:linear-gradient(145deg, #0a2226, #123a42); }
+  .cell.closed img{ filter:brightness(0.55) saturate(1.15); }
+  .cell.closed:active img{ filter:brightness(0.7) saturate(1.2); }
   .cell.open{
     background:var(--card-bg);
   }
@@ -536,11 +537,11 @@ function render(hitIdx){
           const info = SAFE_ICONS[cell.adj];
           btn.innerHTML = `<img src="${info.img}" alt="" /><span class="badge" style="color:${info.color}">${cell.adj}</span>`;
         }
-      } else if(cell.flagged){
-        if(gameOver && !cell.mine){
+      } else {
+        if(cell.flagged && gameOver && !cell.mine){
           btn.classList.add("misflag");
         }
-        btn.innerHTML = `<span class="flag">🚩</span>`;
+        btn.innerHTML = `<img src="/aqua-realms-cover.jpg" alt="" />` + (cell.flagged ? `<span class="flag">🚩</span>` : "");
       }
 
       btn.dataset.r = r; btn.dataset.c = c;
