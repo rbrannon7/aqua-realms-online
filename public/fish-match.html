@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flippin' Fish — Aqua Realms Online</title>
+<meta name="description" content="Flippin' Fish — flip two cards to match pairs of Aqua Realms fish and learn a fun fact with every match." />
+<link rel="icon" href="/aqua-realms-cover.jpg">
+<meta name="theme-color" content="#00cfff">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green: #7FFF00;
+    --green-dark: #4CAF00;
+    --blue: #00cfff;
+    --blue-dark: #0088bb;
+    --bg: #060d0f;
+    --bg2: #0a1a1e;
+    --bg3: #0f2228;
+    --card-bg: #091418;
+    --border: #1a3a40;
+    --border-bright: #2a6a70;
+    --text: #d0eef2;
+    --text-dim: #5a8a90;
+    --gold: #ffd700;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  html { scroll-behavior: smooth; }
+  body{
+    font-family:'Exo 2', sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+    padding:24px 12px 56px;
+  }
+  img{max-width:100%;}
+
+  .page-shell{ width:min(560px, 100%); text-align:center; }
+
+  .fm-cover{
+    width:150px;border-radius:16px;
+    box-shadow:0 0 40px rgba(127,255,0,0.3), 0 0 80px rgba(0,207,255,0.15);
+    animation: coverPulse 3s ease-in-out infinite;
+  }
+  @keyframes coverPulse{
+    0%,100%{ box-shadow:0 0 40px rgba(127,255,0,0.3), 0 0 80px rgba(0,207,255,0.15); }
+    50%{ box-shadow:0 0 55px rgba(127,255,0,0.5), 0 0 110px rgba(0,207,255,0.3); }
+  }
+
+  .fm-title{
+    font-family:'Orbitron', monospace;font-weight:900;
+    font-size:clamp(1.8rem, 7vw, 2.6rem);
+    color:var(--green);
+    text-shadow:0 0 20px var(--green), 0 0 40px rgba(127,255,0,0.4);
+    letter-spacing:0.04em;
+    margin:14px 0 4px;
+  }
+  .fm-subtitle{
+    font-family:'Orbitron', monospace;
+    font-size:clamp(0.62rem, 2vw, 0.85rem);
+    color:var(--blue);
+    letter-spacing:0.25em;
+    text-shadow:0 0 14px var(--blue);
+    text-transform:uppercase;
+  }
+  .fm-tagline{
+    color:var(--text-dim);
+    font-size:0.92rem;line-height:1.6;
+    margin:14px auto 0;max-width:420px;
+  }
+
+  .scoreboard{
+    display:flex;gap:12px;justify-content:center;margin:20px 0;
+  }
+  .stat{
+    background:var(--bg2);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:10px 22px;
+    font-family:'Orbitron', monospace;
+    font-size:1.15rem;font-weight:700;min-width:110px;text-align:center;
+  }
+  .stat span{
+    display:block;font-size:0.68rem;font-weight:700;color:var(--green);
+    text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;
+    font-family:'Exo 2', sans-serif;
+  }
+
+  .board{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:9px;
+    width:100%;
+  }
+  .card{
+    aspect-ratio:3/4.1;
+    perspective:800px;cursor:pointer;border:none;background:none;padding:0;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .card-inner{
+    position:relative;width:100%;height:100%;
+    transition:transform .45s;transform-style:preserve-3d;
+  }
+  .card.flipped .card-inner{ transform:rotateY(180deg); }
+  .face{
+    position:absolute;inset:0;backface-visibility:hidden;
+    border-radius:12px;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .face-back{
+    background:
+      radial-gradient(circle at 30% 25%, rgba(127,255,0,0.16), transparent 55%),
+      radial-gradient(circle at 70% 75%, rgba(0,207,255,0.14), transparent 55%),
+      linear-gradient(155deg, var(--bg3), var(--card-bg));
+    border:1px solid var(--border-bright);
+    box-shadow:0 6px 16px rgba(0,0,0,0.4);
+  }
+  .face-back .fm-mark{
+    font-family:'Orbitron', monospace;font-weight:900;
+    font-size:clamp(1.1rem,6vw,1.5rem);
+    color:var(--blue);
+    text-shadow:0 0 10px var(--blue);
+  }
+  .face-back small{
+    font-size:0.5rem;font-family:'Exo 2',sans-serif;font-weight:700;
+    letter-spacing:0.18em;color:var(--text-dim);margin-top:2px;
+  }
+  .face-front{
+    background:var(--card-bg);
+    transform:rotateY(180deg);
+    border:1px solid var(--green);
+    box-shadow:0 0 0 1px rgba(127,255,0,0.15), 0 6px 16px rgba(0,0,0,0.4);
+  }
+  .face-front img{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+  .face-front .label{
+    position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(to top, rgba(6,13,15,0.95), rgba(6,13,15,0.05));
+    color:var(--text);font-weight:700;font-size:clamp(0.6rem,2.4vw,0.74rem);
+    text-align:center;line-height:1.15;
+    padding:12px 3px 5px;
+  }
+  .card.matched .face-front{
+    border-color:var(--gold);
+    box-shadow:0 0 0 1px rgba(255,215,0,0.4), 0 0 16px rgba(255,215,0,0.25);
+  }
+  .card.matched .label{ color:var(--gold); }
+  .card.matched{ cursor:default; }
+  .card:focus-visible .card-inner{ outline:3px solid var(--gold); outline-offset:3px; border-radius:12px; }
+
+  .tip{
+    width:100%;margin-top:18px;
+    background:var(--bg2);
+    border:1px solid var(--border-bright);
+    border-radius:14px;
+    padding:14px 18px;font-size:0.98rem;line-height:1.5;
+    color:var(--text);text-align:left;
+    display:none;
+  }
+  .tip.show{ display:block; animation:pop .3s ease; }
+  .tip strong{ color:var(--green); }
+  @keyframes pop{ from{transform:scale(.96);opacity:0;} to{transform:scale(1);opacity:1;} }
+
+  .win{
+    width:100%;margin-top:18px;text-align:center;
+    background:linear-gradient(135deg, rgba(127,255,0,0.14), rgba(0,207,255,0.10));
+    border:1px solid var(--green);
+    border-radius:16px;
+    padding:22px;display:none;
+  }
+  .win.show{ display:block; animation:pop .35s ease; }
+  .win h2{
+    font-family:'Orbitron', monospace;font-size:1.3rem;margin:0 0 6px;color:var(--green);
+    text-shadow:0 0 14px rgba(127,255,0,0.5);
+  }
+  .win p{ font-size:1rem;color:var(--text);margin:0; }
+
+  .btn{
+    margin-top:22px;
+    font-family:'Orbitron', monospace;font-size:0.95rem;font-weight:700;
+    background:linear-gradient(135deg, var(--green-dark), #2a8800);
+    border:2px solid var(--green);
+    color:#000;border-radius:50px;padding:0.9rem 2.4rem;cursor:pointer;
+    letter-spacing:0.08em;text-transform:uppercase;
+    box-shadow:0 0 24px rgba(127,255,0,0.25);min-height:52px;
+    transition:all 0.2s;
+  }
+  .btn:hover{ background:linear-gradient(135deg, var(--green), #88ff00); box-shadow:0 0 40px rgba(127,255,0,0.5); }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:3px solid var(--blue); outline-offset:3px; }
+
+  .back-link{
+    display:inline-block;margin-top:18px;
+    color:var(--text-dim);
+    font-size:0.88rem;
+    text-decoration:none;
+    border-bottom:1px solid var(--border-bright);
+  }
+  .back-link:hover{ color:var(--blue); }
+
+  @media (prefers-reduced-motion: reduce){
+    .card-inner{ transition:none; }
+    .tip.show,.win.show,.fm-cover{ animation:none; }
+  }
+
+  @media (max-width:420px){
+    .stat{ min-width:96px;padding:10px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-shell">
+  <a href="/" aria-label="Back to Aqua Realms home">
+    <img class="fm-cover" src="/aqua-realms-cover.jpg" alt="Aqua Realms Online" />
+  </a>
+  <h1 class="fm-title">FLIPPIN' FISH</h1>
+  <div class="fm-subtitle">Aqua Realms Memory Match</div>
+  <p class="fm-tagline">Flip two cards at a time to find matching fish. Match all the pairs and learn a fun fact about each species along the way!</p>
+
+  <div class="scoreboard">
+    <div class="stat"><span>Matches</span><span id="matches">0 of 10</span></div>
+    <div class="stat"><span>Flips</span><span id="moves">0</span></div>
+  </div>
+
+  <div class="board" id="board" role="grid" aria-label="Fish memory match board"></div>
+
+  <div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+  <div class="win" id="win">
+    <h2>🐠 You matched them all!</h2>
+    <p>Great memory! Dive into Aqua Realms Online to build a deck with these fish.</p>
+  </div>
+
+  <div>
+    <button class="btn" id="newGame">New Game</button>
+    <br />
+    <a class="back-link" href="/">&larr; Back to Aqua Realms</a>
+  </div>
+</div>
+
+<script>
+const FISH = [
+  { img:"/cards/Celestial Pearl Danio--Front.jpg", label:"Celestial Pearl Danio",
+    tip:"<strong>Celestial Pearl Danio:</strong> These tiny nano fish shimmer with star-like spots and are happiest in a school of 6 or more." },
+  { img:"/cards/Pygmy Corydoras--Front.jpg", label:"Pygmy Corydoras",
+    tip:"<strong>Pygmy Corydoras:</strong> One of the smallest catfish in the hobby at about 1 inch, these peaceful bottom-dwellers love to school together." },
+  { img:"/cards/Forktail Rainbowfish-Front.jpg", label:"Forktail Rainbowfish",
+    tip:"<strong>Forktail Rainbowfish:</strong> Native to Australia, its forked tail and shimmering colors really pop when kept in an active school." },
+  { img:"/cards/Neon Tetra--Front.jpg", label:"Neon Tetra",
+    tip:"<strong>Neon Tetra:</strong> The classic schooling fish — its electric blue and red stripe flashes brightest in a group of 6 or more." },
+  { img:"/cards/Tuxedo Koi Guppy--Front.jpg", label:"Tuxedo Koi Guppy",
+    tip:"<strong>Tuxedo Koi Guppy:</strong> A colorful livebearer best kept as 1 male to 2 or more females for the calmest, most vibrant display." },
+  { img:"/cards/Scarlet Badis--Front.jpg", label:"Scarlet Badis",
+    tip:"<strong>Scarlet Badis:</strong> Barely an inch long, this micro predator's fiery red coloring makes it stand out in any nano tank." },
+  { img:"/cards/Pea Puffer--Front.jpg", label:"Pea Puffer",
+    tip:"<strong>Pea Puffer:</strong> The world's smallest puffer species — bold, curious, and always on the hunt for a snail shell to crush." },
+  { img:"/cards/Betta Fish--Front.jpg", label:"Betta Fish",
+    tip:"<strong>Betta Fish:</strong> Famous for flaring its fins on display, the Betta is territorial and does best as the only Betta in the tank." },
+  { img:"/cards/Kuhli Loach--Front.jpg", label:"Kuhli Loach",
+    tip:"<strong>Kuhli Loach:</strong> A nocturnal, eel-like burrower that scavenges the substrate in groups of 5 or more." },
+  { img:"/cards/Cherry Shrimp--Front.jpg", label:"Cherry Shrimp",
+    tip:"<strong>Cherry Shrimp:</strong> Not a fish, but a favorite tankmate — this tiny algae-eating cleanup crew thrives in colonies of 6 or more." },
+];
+
+const board   = document.getElementById("board");
+const tipBox  = document.getElementById("tip");
+const winBox  = document.getElementById("win");
+const movesEl = document.getElementById("moves");
+const matchEl = document.getElementById("matches");
+
+let first = null, lock = false, moves = 0, matched = 0;
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function newGame(){
+  first = null; lock = false; moves = 0; matched = 0;
+  movesEl.textContent = "0";
+  matchEl.textContent = "0 of " + FISH.length;
+  tipBox.classList.remove("show");
+  winBox.classList.remove("show");
+  board.innerHTML = "";
+  const deck = shuffle([...FISH, ...FISH].map(p=>({...p, key:p.label})));
+  deck.forEach(p=>{
+    const btn = document.createElement("button");
+    btn.className = "card";
+    btn.dataset.key = p.key;
+    btn.setAttribute("aria-label","Hidden card");
+    btn.innerHTML = `
+      <div class="card-inner">
+        <div class="face face-back"><div class="fm-mark">AR</div><small>AQUA REALMS</small></div>
+        <div class="face face-front"><img src="${p.img}" alt="" /><div class="label">${p.label}</div></div>
+      </div>`;
+    btn.addEventListener("click", ()=>flip(btn, p));
+    board.appendChild(btn);
+  });
+}
+
+function flip(card, perk){
+  if(lock || card.classList.contains("flipped")) return;
+  card.classList.add("flipped");
+  card.setAttribute("aria-label", perk.label);
+  if(!first){ first = card; return; }
+
+  moves++; movesEl.textContent = moves;
+  if(first.dataset.key === card.dataset.key){
+    first.classList.add("matched");
+    card.classList.add("matched");
+    matched++;
+    matchEl.textContent = matched + " of " + FISH.length;
+    tipBox.innerHTML = perk.tip;
+    tipBox.classList.add("show");
+    first = null;
+    if(matched === FISH.length){
+      setTimeout(()=>{ winBox.classList.add("show"); }, 500);
+    }
+  } else {
+    lock = true;
+    const a = first; first = null;
+    setTimeout(()=>{
+      a.classList.remove("flipped");
+      card.classList.remove("flipped");
+      a.setAttribute("aria-label","Hidden card");
+      card.setAttribute("aria-label","Hidden card");
+      lock = false;
+    }, 1100);
+  }
+}
+
+document.getElementById("newGame").addEventListener("click", newGame);
+newGame();
+</script>
+</body>
+</html>
