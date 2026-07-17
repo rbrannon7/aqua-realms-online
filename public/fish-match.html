@@ -107,22 +107,11 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;
   }
   .face-back{
-    background:
-      radial-gradient(circle at 30% 25%, rgba(127,255,0,0.16), transparent 55%),
-      radial-gradient(circle at 70% 75%, rgba(0,207,255,0.14), transparent 55%),
-      linear-gradient(155deg, var(--bg3), var(--card-bg));
     border:1px solid var(--border-bright);
     box-shadow:0 6px 16px rgba(0,0,0,0.4);
   }
-  .face-back .fm-mark{
-    font-family:'Orbitron', monospace;font-weight:900;
-    font-size:clamp(1.1rem,6vw,1.5rem);
-    color:var(--blue);
-    text-shadow:0 0 10px var(--blue);
-  }
-  .face-back small{
-    font-size:0.5rem;font-family:'Exo 2',sans-serif;font-weight:700;
-    letter-spacing:0.18em;color:var(--text-dim);margin-top:2px;
+  .face-back img{
+    width:100%;height:100%;object-fit:cover;display:block;
   }
   .face-front{
     background:var(--card-bg);
@@ -293,7 +282,7 @@ function newGame(){
     btn.setAttribute("aria-label","Hidden card");
     btn.innerHTML = `
       <div class="card-inner">
-        <div class="face face-back"><div class="fm-mark">AR</div><small>AQUA REALMS</small></div>
+        <div class="face face-back"><img src="/aqua-realms-cover.jpg" alt="" /></div>
         <div class="face face-front"><img src="${p.img}" alt="" /><div class="label">${p.label}</div></div>
       </div>`;
     btn.addEventListener("click", ()=>flip(btn, p));
