@@ -140,6 +140,12 @@
   .cell img{
     position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
   }
+  .cell .fish-crop{
+    position:absolute;inset:0;
+    background-repeat:no-repeat;
+    background-size:156% 238%;
+    background-position:50% 45%;
+  }
   .cell .flag{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:min(4vw, 22px);
@@ -532,10 +538,10 @@ function render(hitIdx){
         btn.innerHTML = `<span class="bolt">⚡</span>`;
       } else if(cell.revealed){
         if(cell.adj === 0){
-          btn.innerHTML = `<img src="${ZERO_IMG}" alt="" />`;
+          btn.innerHTML = `<div class="fish-crop" style="background-image:url('${ZERO_IMG}')"></div>`;
         } else {
           const info = SAFE_ICONS[cell.adj];
-          btn.innerHTML = `<img src="${info.img}" alt="" /><span class="badge" style="color:${info.color}">${cell.adj}</span>`;
+          btn.innerHTML = `<div class="fish-crop" style="background-image:url('${info.img}')"></div><span class="badge" style="color:${info.color}">${cell.adj}</span>`;
         }
       } else {
         if(cell.flagged && gameOver && !cell.mine){
