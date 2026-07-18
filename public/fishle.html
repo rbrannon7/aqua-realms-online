@@ -232,10 +232,25 @@ h1{font-family:'Fredoka',sans-serif;font-weight:700;font-size:30px;letter-spacin
   .key{height:46px;font-size:14px}
   h1{font-size:26px}
 }
+#muteBtn{
+  position:fixed;bottom:2.7rem;left:1.2rem;z-index:9999;
+  background:var(--glass);border:1px solid var(--glass-border);border-radius:50%;
+  width:2.4rem;height:2.4rem;font-size:1.1rem;color:var(--text);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  opacity:.7;transition:opacity .2s,border-color .2s;
+}
+#muteBtn:hover{opacity:1;border-color:var(--cyan)}
 </style>
 </head>
 <body>
 <div id="bubbles"></div>
+
+<!-- Background music -->
+<audio id="bgMusic" loop preload="auto">
+  <source src="/theme.ogg" type="audio/ogg">
+  <source src="/theme.mp3" type="audio/mpeg">
+</audio>
+<button id="muteBtn" title="Toggle music">🔊</button>
 
 <!-- INTRO / TITLE SCREEN -->
 <div id="intro">
@@ -861,6 +876,40 @@ document.getElementById("introHowto").addEventListener("click",()=>open(document
 buildKeyboard();
 newGame();
 // the intro screen is shown on load; game starts when the player chooses a mode
+</script>
+
+<script>
+(function() {
+  const music  = document.getElementById('bgMusic');
+  const btn    = document.getElementById('muteBtn');
+  let started  = false;
+  let muted    = localStorage.getItem('arMusicMuted') === 'true';
+
+  function applyMute() {
+    music.muted = muted;
+    btn.textContent = muted ? '🔇' : '🔊';
+  }
+
+  function startMusic() {
+    if (started) return;
+    music.volume = 0.35;
+    applyMute();
+    music.play().then(() => { started = true; }).catch(() => {});
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    muted = !muted;
+    localStorage.setItem('arMusicMuted', muted);
+    applyMute();
+    startMusic();
+  });
+
+  document.addEventListener('click', startMusic, true);
+  document.addEventListener('keydown', startMusic, true);
+
+  applyMute();
+})();
 </script>
 </body>
 </html>
