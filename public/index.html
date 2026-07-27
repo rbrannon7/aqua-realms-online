@@ -979,6 +979,7 @@ html, body { height: 100%; }
 .mode-card.mode-2p .mode-title { color: var(--blue); }
 .mode-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
 .mode-badge { position: absolute; top: 1rem; right: 1rem; background: rgba(127,255,0,0.15); border: 1px solid var(--green); color: var(--green); font-size: 0.6rem; font-family: 'Orbitron', monospace; padding: 3px 8px; border-radius: 99px; }
+.game-link-icon { font-size: 2.6rem; margin-bottom: 0.5rem; }
 .mode-card.mode-2p .mode-badge { background: rgba(0,207,255,0.15); border-color: var(--blue); color: var(--blue); }
 
 /* ===== PASS DEVICE OVERLAY ===== */
@@ -1150,9 +1151,27 @@ html, body { height: 100%; }
   </div>
 
   <div class="more-games-title">MORE AQUA REALMS GAMES</div>
-  <a class="btn-secondary" href="/fish-match.html" style="text-decoration:none;display:inline-block;margin-top:1.5rem;">🐟 &nbsp;Play Flippin' Fish (Memory Fish Match)</a>
-  <a class="btn-secondary" href="/aquarium-sweep.html" style="text-decoration:none;display:inline-block;margin-top:1rem;">💣 &nbsp;Play Aquarium Sweep (Power Outage Game)</a>
-  <a class="btn-secondary" href="/fishle.html" style="text-decoration:none;display:inline-block;margin-top:1rem;">🐠 &nbsp;Play Fishle (Fishkeeping Word Game)</a>
+
+  <a class="mode-card" href="/fish-match.html" style="text-decoration:none;display:block;border-color:#00cfff;margin-top:1.5rem;">
+    <span class="mode-badge" style="background:rgba(0,207,255,0.15);border-color:#00cfff;color:#00cfff;">Memory Fish Match</span>
+    <div class="game-link-icon">🐟</div>
+    <div class="mode-title" style="color:#00cfff;">Flippin' Fish</div>
+    <p class="mode-desc">Flip cards and find every matching pair before time's up.</p>
+  </a>
+
+  <a class="mode-card" href="/aquarium-sweep.html" style="text-decoration:none;display:block;border-color:#ff8c00;margin-top:1rem;">
+    <span class="mode-badge" style="background:rgba(255,140,0,0.15);border-color:#ff8c00;color:#ff8c00;">Power Outage Game</span>
+    <div class="game-link-icon">💣</div>
+    <div class="mode-title" style="color:#ff8c00;">Aquarium Sweep</div>
+    <p class="mode-desc">Clear every safe tile — avoid the Power Outages hiding underneath.</p>
+  </a>
+
+  <a class="mode-card" href="/fishle.html" style="text-decoration:none;display:block;border-color:#ffd700;margin-top:1rem;">
+    <span class="mode-badge" style="background:rgba(255,215,0,0.15);border-color:#ffd700;color:#ffd700;">Fishkeeping Word Game</span>
+    <div class="game-link-icon">🐠</div>
+    <div class="mode-title" style="color:#ffd700;">Fishle</div>
+    <p class="mode-desc">Guess today's hidden fishkeeping word in 6 tries.</p>
+  </a>
 </div>
 
 <!-- ===== DECK BUILDER SCREEN ===== -->
