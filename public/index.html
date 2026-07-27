@@ -858,14 +858,6 @@ html, body { height: 100%; }
 
 /* ===== STEP 4: FINAL POLISH ===== */
 
-/* ── DIFFICULTY SELECT ── */
-.diff-row { display:flex; gap:10px; justify-content:center; margin:1rem 0; flex-wrap:wrap; }
-.diff-btn { background:transparent; border:2px solid var(--border); color:var(--text-dim); font-family:'Exo 2',sans-serif; font-size:0.85rem; font-weight:600; padding:0.6rem 1.4rem; border-radius:50px; cursor:pointer; transition:all 0.2s; }
-.diff-btn:hover   { border-color:var(--blue); color:var(--blue); }
-.diff-btn.selected{ border-color:var(--green); color:var(--green); background:rgba(127,255,0,0.08); }
-.diff-btn.easy    { --hover:#88ff88; }
-.diff-btn.hard    { --hover:#ff8888; }
-
 /* ── WIN / LOSE SCREEN - enhanced ── */
 .result-overlay { flex-direction:column; gap:0; }
 .result-card { background:var(--bg2); border:1px solid var(--border-bright); border-radius:20px; padding:2rem 2.5rem; text-align:center; max-width:480px; width:90%; box-shadow:0 0 80px rgba(0,0,0,0.8); }
@@ -977,8 +969,7 @@ html, body { height: 100%; }
 .db-footer .btn-secondary { padding: 0.7rem 1rem; font-size: 0.8rem; }
 .db-error-msg { position: fixed; bottom: 68px; left: 0; right: 0; text-align: center; font-size: 0.8rem; color: #ff6666; padding: 0.4rem; background: rgba(255,40,40,0.15); border-top: 1px solid rgba(255,40,40,0.3); display: none; z-index: 49; }
 
-/* ===== MODE SELECTION SCREEN ===== */
-#mode-select { align-items: center; justify-content: center; text-align: center; padding: 2rem; overflow-y: auto; }
+/* ===== MODE SELECTION CARDS (now on splash) ===== */
 .mode-card { background: var(--bg2); border: 2px solid var(--border-bright); border-radius: 20px; padding: 2rem 2.5rem; max-width: 460px; width: 100%; margin: 1rem 0; cursor: pointer; transition: all 0.25s; position: relative; }
 .mode-card:hover { border-color: var(--green); box-shadow: 0 0 40px rgba(127,255,0,0.2); transform: translateY(-3px); }
 .mode-card.mode-2p { border-color: var(--blue); }
@@ -1108,18 +1099,56 @@ html, body { height: 100%; }
   <div class="game-title">AQUA REALMS</div>
   <div class="game-subtitle">10 Gallon Fish Tanks · TCG</div>
   <p class="splash-tagline">Build your aquarium ecosystem. Protect your tank. Crash theirs. Reduce your opponent's Water Parameters to zero and claim victory.</p>
-  <div class="diff-row">
-    <button class="diff-btn easy" onclick="setDiff('easy',this)">🐠 Easy</button>
-    <button class="diff-btn selected" onclick="setDiff('normal',this)">🐡 Normal</button>
-    <button class="diff-btn hard" onclick="setDiff('hard',this)">🦈 Hard</button>
+  <!-- CPU Mode -->
+  <div class="mode-card" style="margin-bottom:1rem;">
+    <span class="mode-badge">Single Player</span>
+    <div class="mode-icon">🤖</div>
+    <div class="mode-title">vs CPU</div>
+    <p class="mode-desc">Challenge the AI head-to-head.</p>
+    <button class="btn-primary" style="margin-top:1rem;width:100%;padding:0.75rem;" onclick="selectMode('cpu')">
+      ▶ Play vs CPU
+    </button>
   </div>
-  <button class="btn-secondary" onclick="showScreen('mode-select')">🃏 &nbsp;Browse Cards &amp; Deck Builder</button>
-  <div class="splash-features">
-    <div class="splash-feat"><b>30 Cards</b>Fish, Shrimp, Snails, Plants & Events</div>
-    <div class="splash-feat"><b>Real Abilities</b>Schoolers, Molting, Deep Roots & more</div>
-    <div class="splash-feat"><b>Smart CPU</b>3 difficulty levels with tactical AI</div>
-    <div class="splash-feat"><b>Educational</b>Real aquarium facts on every card back</div>
+
+  <!-- 2 Player Mode — NO onclick on the card; Start button handles it -->
+  <div class="mode-card mode-2p" style="margin-bottom:1rem;">
+    <span class="mode-badge">Two Players</span>
+    <div class="mode-icon">🎮</div>
+    <div class="mode-title" style="color:var(--blue);">2 Players</div>
+    <p class="mode-desc">Pass &amp; Play on one device. Hands are hidden between turns.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;margin-top:1rem;">
+      <div style="text-align:center;">
+        <div style="font-size:0.7rem;color:var(--blue);font-weight:700;margin-bottom:6px;">Player 1 Name</div>
+        <input id="p1name" type="text" placeholder="Player 1" value="Player 1"
+          style="width:130px;text-align:center;padding:0.5rem;font-family:'Exo 2',sans-serif;font-size:0.85rem;color:var(--text);background:var(--bg3);border:1px solid var(--blue);border-radius:8px;outline:none;">
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:0.7rem;color:var(--orange);font-weight:700;margin-bottom:6px;">Player 2 Name</div>
+        <input id="p2name" type="text" placeholder="Player 2" value="Player 2"
+          style="width:130px;text-align:center;padding:0.5rem;font-family:'Exo 2',sans-serif;font-size:0.85rem;color:var(--text);background:var(--bg3);border:1px solid var(--orange);border-radius:8px;outline:none;">
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:1rem;width:100%;padding:0.75rem;background:linear-gradient(135deg,#006699,#0044aa);border-color:var(--blue);" onclick="selectMode('2p')">
+      🎮 Start 2 Player Game
+    </button>
   </div>
+
+  <!-- Play Online Card -->
+  <div class="mode-card" style="margin-bottom:1rem;border-color:#00cc88;">
+    <span class="mode-badge" style="background:linear-gradient(135deg,#00cc88,#007744);">Online</span>
+    <div class="mode-icon">🌐</div>
+    <div class="mode-title" style="color:#00cc88;">Play Online</div>
+    <p class="mode-desc">Challenge a real opponent anywhere in the world. Live chat included.</p>
+    <div style="text-align:center;margin-top:1rem;">
+      <div style="font-size:0.7rem;color:#00cc88;font-weight:700;margin-bottom:6px;">Your Name</div>
+      <input id="onlineName" type="text" placeholder="Enter your name" maxlength="20"
+        style="width:200px;text-align:center;padding:0.5rem;font-family:'Exo 2',sans-serif;font-size:0.85rem;color:var(--text);background:var(--bg3);border:1px solid #00cc88;border-radius:8px;outline:none;">
+    </div>
+    <button class="btn-primary" style="margin-top:1rem;width:100%;padding:0.75rem;background:linear-gradient(135deg,#00aa66,#007744);border-color:#00cc88;" onclick="startOnlineMode()">
+      🌐 Find Opponent
+    </button>
+  </div>
+
   <div class="more-games-title">MORE AQUA REALMS GAMES</div>
   <a class="btn-secondary" href="/fish-match.html" style="text-decoration:none;display:inline-block;margin-top:1.5rem;">🐟 &nbsp;Play Flippin' Fish (Memory Fish Match)</a>
   <a class="btn-secondary" href="/aquarium-sweep.html" style="text-decoration:none;display:inline-block;margin-top:1rem;">💣 &nbsp;Play Aquarium Sweep (Power Outage Game)</a>
@@ -1186,71 +1215,6 @@ html, body { height: 100%; }
     <button class="filter-tab" onclick="filterCards('snail',this)">Snails (3)</button>
   </div>
   <div class="cards-grid" id="cardsGrid"></div>
-</div>
-
-
-<!-- ===== MODE SELECT SCREEN ===== -->
-<div class="screen" id="mode-select">
-  <div style="margin-bottom:1.5rem;">
-    <button class="btn-secondary" style="padding:0.4rem 1rem;" onclick="showScreen('splash')">← Back</button>
-  </div>
-  <div style="font-family:'Orbitron',monospace;font-size:1.2rem;color:var(--green);margin-bottom:0.4rem;letter-spacing:0.1em;">CHOOSE MODE</div>
-  <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;">How do you want to play?</p>
-
-  <!-- CPU Mode — clicking this card is safe, no inputs inside -->
-  <div class="mode-card" style="margin-bottom:1rem;">
-    <span class="mode-badge">Single Player</span>
-    <div class="mode-icon">🤖</div>
-    <div class="mode-title">vs CPU</div>
-    <p class="mode-desc">Challenge the AI. Pick a difficulty level then hit Play.</p>
-    <div class="diff-row" style="margin-top:0.75rem;">
-      <button class="diff-btn easy" onclick="setDiff('easy',this)">🐠 Easy</button>
-      <button class="diff-btn selected" onclick="setDiff('normal',this)">🐡 Normal</button>
-      <button class="diff-btn hard" onclick="setDiff('hard',this)">🦈 Hard</button>
-    </div>
-    <button class="btn-primary" style="margin-top:1rem;width:100%;padding:0.75rem;" onclick="selectMode('cpu')">
-      ▶ Play vs CPU
-    </button>
-  </div>
-
-  <!-- 2 Player Mode — NO onclick on the card; Start button handles it -->
-  <div class="mode-card mode-2p" style="margin-bottom:1rem;">
-    <span class="mode-badge">Two Players</span>
-    <div class="mode-icon">🎮</div>
-    <div class="mode-title" style="color:var(--blue);">2 Players</div>
-    <p class="mode-desc">Pass &amp; Play on one device. Hands are hidden between turns.</p>
-    <div style="display:flex;gap:1rem;justify-content:center;margin-top:1rem;">
-      <div style="text-align:center;">
-        <div style="font-size:0.7rem;color:var(--blue);font-weight:700;margin-bottom:6px;">Player 1 Name</div>
-        <input id="p1name" type="text" placeholder="Player 1" value="Player 1"
-          style="width:130px;text-align:center;padding:0.5rem;font-family:'Exo 2',sans-serif;font-size:0.85rem;color:var(--text);background:var(--bg3);border:1px solid var(--blue);border-radius:8px;outline:none;">
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:0.7rem;color:var(--orange);font-weight:700;margin-bottom:6px;">Player 2 Name</div>
-        <input id="p2name" type="text" placeholder="Player 2" value="Player 2"
-          style="width:130px;text-align:center;padding:0.5rem;font-family:'Exo 2',sans-serif;font-size:0.85rem;color:var(--text);background:var(--bg3);border:1px solid var(--orange);border-radius:8px;outline:none;">
-      </div>
-    </div>
-    <button class="btn-primary" style="margin-top:1rem;width:100%;padding:0.75rem;background:linear-gradient(135deg,#006699,#0044aa);border-color:var(--blue);" onclick="selectMode('2p')">
-      🎮 Start 2 Player Game
-    </button>
-  </div>
-
-  <!-- ── Play Online Card ─────────────────────────── -->
-  <div class="mode-card" style="margin-bottom:1rem;border-color:#00cc88;">
-    <span class="mode-badge" style="background:linear-gradient(135deg,#00cc88,#007744);">Online</span>
-    <div class="mode-icon">🌐</div>
-    <div class="mode-title" style="color:#00cc88;">Play Online</div>
-    <p class="mode-desc">Challenge a real opponent anywhere in the world. Live chat included.</p>
-    <div style="text-align:center;margin-top:1rem;">
-      <div style="font-size:0.7rem;color:#00cc88;font-weight:700;margin-bottom:6px;">Your Name</div>
-      <input id="onlineName" type="text" placeholder="Enter your name" maxlength="20"
-        style="width:200px;text-align:center;padding:0.5rem;font-family:'Exo 2',sans-serif;font-size:0.85rem;color:var(--text);background:var(--bg3);border:1px solid #00cc88;border-radius:8px;outline:none;">
-    </div>
-    <button class="btn-primary" style="margin-top:1rem;width:100%;padding:0.75rem;background:linear-gradient(135deg,#00aa66,#007744);border-color:#00cc88;" onclick="startOnlineMode()">
-      🌐 Find Opponent
-    </button>
-  </div>
 </div>
 
 <!-- ===== ONLINE LOBBY SCREEN ===== -->
@@ -2296,15 +2260,6 @@ setInterval(() => {
 
 
 // ============================================================
-// DIFFICULTY
-// ============================================================
-function setDiff(level, btn) {
-  DIFFICULTY = level;
-  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-}
-
-// ============================================================
 // DISCARD VIEWER
 // ============================================================
 function openDiscardViewer(who) {
@@ -2703,7 +2658,7 @@ function deckBuilderBack() {
   if (DB_STATE.mode === '2p' && DB_STATE.buildingFor === 'p2') {
     openDeckBuilder('2p', 'p1'); // go back to P1 deck
   } else {
-    showScreen('mode-select');
+    showScreen('splash');
   }
 }
 
@@ -4905,7 +4860,7 @@ function cancelOnline() {
   arActive = false;
   window._onlineMode = false;
   GAME_MODE = 'cpu';
-  showScreen('mode-select');
+  showScreen('splash');
 }
 
 // ─── Connect ──────────────────────────────────────────────────────────────────
@@ -5742,7 +5697,7 @@ function onlineResultBack() {
   if (arWs) { try { arWs.close(); } catch(e){} arWs = null; }
   arActive = false; window._onlineMode = false;
   GAME_MODE = 'cpu';
-  showScreen('mode-select');
+  showScreen('splash');
 }
 
 function requestRematch() {
