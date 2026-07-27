@@ -1177,7 +1177,6 @@ html, body { height: 100%; }
 <!-- ===== DECK BUILDER SCREEN ===== -->
 <div class="screen" id="deck-builder">
   <div class="db-header">
-    <button class="btn-secondary" style="padding:0.35rem 0.9rem;margin:0;font-size:0.8rem;" onclick="deckBuilderBack()">← Back</button>
     <div class="db-title">BUILD YOUR DECK</div>
     <div class="db-for-label" id="db-for-label">YOUR DECK</div>
   </div>
@@ -1205,6 +1204,7 @@ html, body { height: 100%; }
     <div class="db-card-grid" id="dbCardGrid"></div>
   </div>
   <div class="db-footer">
+    <button class="btn-secondary" onclick="deckBuilderBack()" style="padding:0.7rem 0.8rem;font-size:0.75rem;">← Back</button>
     <button class="btn-secondary" onclick="deckBuilderReset()" style="padding:0.7rem 0.8rem;font-size:0.75rem;">Reset</button>
     <button class="btn-secondary" onclick="_galleryFrom='deck-builder';showScreen('gallery')" style="padding:0.7rem 0.8rem;font-size:0.75rem;">Browse Cards</button>
     <button class="btn-primary" id="db-confirm-btn" onclick="deckBuilderConfirm()">Confirm Deck (0/20)</button>
