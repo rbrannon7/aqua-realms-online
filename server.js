@@ -12,20 +12,6 @@ const wss    = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 10000;
 
-// ─── Data dir (ephemeral on the Free plan — no persistent disk) ──────────────
-const DB_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
-
-// ─── Splash visit counter (flat file) ─────────────────────────────────────────
-const COUNTER_FILE = path.join(DB_DIR, 'splash-visits.txt');
-const VISIT_SEED = 20;
-function readVisitCount() {
-  try { return Math.max(VISIT_SEED, parseInt(fs.readFileSync(COUNTER_FILE, 'utf8'), 10) || 0); } catch { return VISIT_SEED; }
-}
-function writeVisitCount(n) {
-  try { fs.writeFileSync(COUNTER_FILE, String(n)); } catch {}
-}
-
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json());
 
@@ -45,16 +31,6 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
-});
-
-app.post('/api/splash-visit', (req, res) => {
-  const n = readVisitCount() + 1;
-  writeVisitCount(n);
-  res.json({ count: n });
-});
-
-app.get('/api/splash-visit', (req, res) => {
-  res.json({ count: readVisitCount() });
 });
 
 app.get('/api/health', (req, res) => {
