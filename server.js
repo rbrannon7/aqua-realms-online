@@ -18,8 +18,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'aqua-realms-dev-secret-changeme-in
 const JWT_EXPIRY = '30d';
 
 // ─── Database ─────────────────────────────────────────────────────────────────
-// On Render, use the mounted persistent disk at /data; locally use ./data
-const DB_DIR = process.env.RENDER ? '/data' : path.join(__dirname, 'data');
+// No persistent disk on the Free plan — data resets on every restart/redeploy.
+const DB_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
 const db = new Database(path.join(DB_DIR, 'aqua-realms.db'));
